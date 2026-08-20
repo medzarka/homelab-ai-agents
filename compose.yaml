@@ -1,5 +1,6 @@
 # ==============================================================================
-# HOMELAB AI AGENTS: NOUS RESEARCH HERMES AGENT & MEM0 CONVERSATIONAL MEMORY
+# HOMELAB AI AGENTS STACK
+# Services: Hermes Agent, Mem0 Memory (PGVector + Neo4j), Qdrant & Open-WebUI
 # Optimized for ARM64 / Orange Pi 5 Plus (8 Cores RK3588, 32GB RAM)
 # ==============================================================================
 
@@ -22,6 +23,7 @@ services:
         mkdir -p /data/workspace/hermes/workspace /data/workspace/hermes/output
         mkdir -p /data/mem0/pgdata /data/mem0/history
         mkdir -p /data/neo4j/data /data/neo4j/logs
+        mkdir -p /data/qdrant /data/open-webui
 
         echo ">>> [Init] Setting volume ownership and permissions..."
         # 999:999 for PostgreSQL (pgvector)
@@ -30,7 +32,7 @@ services:
 
         # 7474:7474 for Neo4j
         chown -R 7474:7474 /data/neo4j/data /data/neo4j/logs 2>/dev/null || true
-        chmod -R 775 /data/workspace /data/mem0/history /data/neo4j
+        chmod -R 775 /data/workspace /data/mem0/history /data/neo4j /data/qdrant /data/open-webui
 
         echo ">>> [Init] Storage volumes initialized successfully!"
 
@@ -79,7 +81,7 @@ services:
       - FIRECRAWL_API_URL=${FIRECRAWL_API_URL}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
       - DOCLING_API_URL=${DOCLING_API_URL}
-      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
       - QDRANT_API_KEY=${QDRANT_API_KEY}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
       - VLM_MODEL=${VLM_MODEL:-hermes-vision}
@@ -106,6 +108,8 @@ services:
         condition: service_completed_successfully
       mem0-api:
         condition: service_started
+      qdrant:
+        condition: service_healthy
     networks:
       - shared_net
     logging:
@@ -290,6 +294,105 @@ services:
       mem0-pgvector:
         condition: service_healthy
       neo4j:
+        condition: service_healthy
+    networks:
+      - shared_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # QDRANT VECTOR DATABASE (Local Vector Store for Open-WebUI & Agents)
+  # ========================================================
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    container_name: qdrant
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - ${DATA_DIR:-/srv/data/ai-agents}/qdrant:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
+    depends_on:
+      init-volumes:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - shared_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # OPEN-WEBUI CHAT INTERFACE
+  # ========================================================
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "${OPEN_WEBUI_PORT:-3030}:8080"
+    volumes:
+      - ${DATA_DIR:-/srv/data/ai-agents}/open-webui:/app/backend/data
+    environment:
+      # --- 1. UI Customization ---
+      - WEBUI_NAME=${WEBUI_NAME:-Bluewave AI Hub}
+      - WEBUI_BRAND=${WEBUI_BRAND:-Bluewave AI Hub}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - BYPASS_MODEL_ACCESS_CONTROL=true
+      - WEBUI_WORKERS=${WEBUI_WORKERS:-4}
+
+      # --- 2. LLM Chat Models ---
+      - OPENAI_API_BASE_URLS=${LITELLM_API_BASE}
+      - OPENAI_API_KEYS=${LITELLM_MASTER_KEY}
+      
+      # --- 3. Infinity Embeddings & RAG Engine ---
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_OPENAI_API_BASE_URL=${INFINITY_API_BASE}
+      - RAG_OPENAI_API_KEY=${INFINITY_API_KEY}
+      - RAG_EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+
+      # --- 4. SearXNG Web Search Integration ---
+      - ENABLE_RAG_WEB_SEARCH=True
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_SEARCH_URL=${SEARXNG_BASE_URL}/search?q=<query>
+      - BYPASS_WEB_SEARCH_WEB_LOADER=True
+
+      # --- 5. Docling Document Parsing & Vision Extraction ---
+      - RAG_FILE_MAX_SIZE=100
+      - CONTENT_EXTRACTION_ENGINE=docling
+      - DOCLING_SERVER_URL=${DOCLING_API_URL}
+      - DOCLING_PARAMS={"include_images":true,"do_picture_description":true,"picture_description_options":{"engine":"api","url":"${LITELLM_API_BASE}/chat/completions","api_key":"${LITELLM_MASTER_KEY}","model":"google-gemini-3.1-flash-lite","prompt":"Analyze this image, chart, map, or diagram. Extract the axis labels, numerical trends, visual data structures, and provide a clear description for an academic knowledge base."}}
+
+      # Timeouts
+      - HTTP_TIMEOUT=1800
+      - DOCLING_TIMEOUT=1800
+      - AIOHTTP_TIMEOUT=1800
+      - AUDIO_TTS_ENGINE=web
+      - AUDIO_STT_ENGINE=web
+
+      # --- 6. Vector Database integration via Qdrant ---
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+
+    depends_on:
+      init-volumes:
+        condition: service_completed_successfully
+      qdrant:
         condition: service_healthy
     networks:
       - shared_net
