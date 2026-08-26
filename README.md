@@ -1,3 +1,15 @@
+> ### 🌐 [Homelab Sovereign Cluster Architecture](https://github.com/medzarka/homelab-nodes)
+> This repository is a modular component of the **Homelab Sovereign Multi-Node Cluster** — an enterprise-grade, privacy-first, self-hosted infrastructure spanning cloud VPS, on-premise compute servers, and edge ARM nodes.
+> 
+> * **Zero-Trust Network**: Multi-host WireGuard mesh interconnect via **Tailscale** with strict **Firewalld** zoning (`iptables: false`).
+> * **Unified Identity & Ingress**: Centralized reverse proxy via **Traefik v3**, **Authelia SSO (2FA)**, and **LLDAP Directory**.
+> * **Cluster Orchestration & GitOps**: High-availability **Docker Swarm** managed declaratively via **Arcane Cockpit**.
+> * **End-to-End Observability**: Centralized portal (**Homepage**), metrics (**Beszel**), real-time logs (**Dozzle**), and uptime monitoring (**Uptime Kuma**).
+> * **Sovereign Local AI & Compute**: Distributed inference (**LiteLLM**, **Ollama**, **Qdrant**, **Mem0**, **Hermes Agents**).
+> * **Private Cloud & Storage**: Encrypted data synchronization, automated backups, and multi-cloud mirrors.
+
+---
+
 # 🤖 Homelab AI Agents Stack
 
 A complete self-hosted AI Agent runtime, long-term conversational memory, vector database, and chat interface powered by:
@@ -6,7 +18,7 @@ A complete self-hosted AI Agent runtime, long-term conversational memory, vector
 - **Qdrant:** High-performance vector database for document embeddings and semantic recall.
 - **Mem0 Conversational Memory:** Hybrid vector (`PostgreSQL + pgvector`) and graph (`Neo4j`) long-term memory engine.
 
-Optimized for **ARM64 (Orange Pi 5 Plus 32GB RAM)** and generic Linux/Docker hosts.
+Optimized for **ARM64 and AMD64** Linux/Docker hosts.
 
 ---
 
