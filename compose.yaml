@@ -113,6 +113,14 @@ services:
     networks:
       - shared_net
       - homelab_swarm_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hermes.rule=Host(`hermes.${ROOT_DOMAIN:-example.com}`, `agents.${ROOT_DOMAIN:-example.com}`)"
+      - "traefik.http.routers.hermes.entrypoints=websecure"
+      - "traefik.http.routers.hermes.tls=true"
+      - "traefik.http.routers.hermes.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file"
+      - "traefik.http.services.hermes.loadbalancer.server.port=9119"
+      - "traefik.docker.network=${SHARED_NETWORK:-shared_net}"
     logging:
       driver: "json-file"
       options:
@@ -404,6 +412,14 @@ services:
     networks:
       - shared_net
       - homelab_swarm_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.open-webui.rule=Host(`open-webui.${ROOT_DOMAIN:-example.com}`, `chat.${ROOT_DOMAIN:-example.com}`)"
+      - "traefik.http.routers.open-webui.entrypoints=websecure"
+      - "traefik.http.routers.open-webui.tls=true"
+      - "traefik.http.routers.open-webui.middlewares=app-fail2ban@file,security-headers@file,compression@file"
+      - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
+      - "traefik.docker.network=${SHARED_NETWORK:-shared_net}"
     logging:
       driver: "json-file"
       options:
