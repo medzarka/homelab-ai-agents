@@ -120,7 +120,7 @@ services:
       - "traefik.http.routers.hermes.tls=true"
       - "traefik.http.routers.hermes.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file"
       - "traefik.http.services.hermes.loadbalancer.server.port=9119"
-      - "traefik.docker.network=${SHARED_NETWORK:-shared_net}"
+      - "traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}"
     logging:
       driver: "json-file"
       options:
@@ -419,7 +419,7 @@ services:
       - "traefik.http.routers.open-webui.tls=true"
       - "traefik.http.routers.open-webui.middlewares=app-fail2ban@file,security-headers@file,compression@file"
       - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
-      - "traefik.docker.network=${SHARED_NETWORK:-shared_net}"
+      - "traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}"
     logging:
       driver: "json-file"
       options:
