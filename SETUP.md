@@ -1,237 +1,192 @@
-# 🚀 Complete Setup & Optimization Guide for Homelab AI Agents
+# 🚀 Homelab AI Agents Architecture & Configuration Guide
 
-This guide walks you through completing the post-deployment configuration of **Hermes Agent** and **Open-WebUI** to maximize the capabilities of all sovereign AI microservices running across your cluster.
+This guide provides a comprehensive breakdown of the integration between **Hermes Agent**, **Open-WebUI**, and all sovereign AI microservices running across your Homelab cluster (`zap-srv`, `oci01-flex`, and `zap-vps`).
+
+It clearly demarcates **what is 100% automated via Docker Compose & configuration files**, and **what must be configured once inside the Open-WebUI or Hermes Agent web interfaces**.
 
 ---
 
 ## 📑 Table of Contents
-1. [Cluster Microservices Inventory](#1-cluster-microservices-inventory)
-2. [Step 1: Deploying the Stack on `zap-srv`](#step-1-deploying-the-stack-on-zap-srv)
-3. [Step 2: Configuring Open-WebUI Admin Interface](#step-2-configuring-open-webui-admin-interface)
-4. [Step 3: Mastering Hermes Agent Personalities & Tools](#step-3-mastering-hermes-agent-personalities--tools)
-5. [Step 4: Leveraging Hybrid Memory (Mem0 + Knowledge MCP)](#step-4-leveraging-hybrid-memory-mem0--knowledge-mcp)
-6. [Step 5: Sandboxed Code Execution via MCP](#step-5-sandboxed-code-execution-via-mcp)
-7. [Step 6: Workspace Indexing & Knowledge Ingestion](#step-6-workspace-indexing--knowledge-ingestion)
-8. [Verification & Health Diagnostics](#verification--health-diagnostics)
+1. [Cluster Microservices Architecture Matrix](#1-cluster-microservices-architecture-matrix)
+2. [What is 100% Automated via Docker Compose & Config Files](#2-what-is-100-automated-via-docker-compose--config-files)
+   - [Hermes Agent Automated Integration](#21-hermes-agent-automated-integration)
+   - [Open-WebUI Automated Integration](#22-open-webui-automated-integration)
+   - [Workspace Knowledge Scanner Automated Ingestion](#23-workspace-knowledge-scanner-automated-ingestion)
+   - [Storage & Health Guard Automated Initialization](#24-storage--health-guard-automated-initialization)
+3. [What Still Needs Configuration via the Web Interface](#3-what-still-needs-configuration-via-the-web-interface)
+   - [Open-WebUI Web Interface Checklist (`https://open-webui.bluewave.work`)](#31-open-webui-web-interface-checklist)
+   - [Hermes Agent Dashboard Checklist (`https://hermes.bluewave.work`)](#32-hermes-agent-dashboard-checklist)
+4. [Step-by-Step UI Setup Walkthrough](#4-step-by-step-ui-setup-walkthrough)
+5. [Operational Verification & Diagnostics](#5-operational-verification--diagnostics)
 
 ---
 
-## 1. Cluster Microservices Inventory
+## 1. Cluster Microservices Architecture Matrix
 
-All services communicate over the internal encrypted Docker Swarm overlay network (`homelab_swarm_net`). No host ports are exposed:
+All AI services communicate securely over the encrypted Docker Swarm overlay network (`homelab_swarm_net`). Neither `hermes-agent` nor `open-webui` expose raw host ports. Ingress is routed through Traefik with Cloudflare SSL and Authelia SSO.
 
-| Service | Internal Swarm Endpoint | External Secure URL | Purpose |
-| :--- | :--- | :--- | :--- |
-| **LiteLLM Gateway** | `http://litellm:4000/v1` | `https://litellm.bluewave.work` | Cloud & Local LLM Router (Claude, Gemini, GPT) |
-| **Ollama Inference** | `http://ollama:11434/v1` | `https://ollama.bluewave.work` | Local LLMs (`hermes3:8b`) & Vision (`qwen2.5vl:3b`) |
-| **TEI Embeddings** | `http://embeddings:80/v1` | `https://embeddings.bluewave.work` | High-speed Dense Embeddings (`BAAI/bge-m3`) |
-| **TEI Reranker** | `http://reranker:80` | `https://reranker.bluewave.work` | Cross-Encoder Reranker (`BAAI/bge-reranker-v2-m3`) |
-| **Speaches Audio** | `http://speaches:8000/v1` | `https://audio.bluewave.work` | STT (`Whisper-Large-v3`) & TTS (`Kokoro-82M ONNX`) |
-| **SearXNG Search** | `http://searxng:8080` | `https://search.bluewave.work` | Privacy-first Web Metasearch |
-| **Firecrawl Scraper**| `http://firecrawl-api:3036` | `https://scraper.bluewave.work` | Full-page Markdown web crawler & scraper |
-| **Mem0 Memory** | `http://mem0-api:8000` | `https://mem0.bluewave.work` | Turn-by-turn conversational episodic memory |
-| **Qdrant Vector DB** | `http://qdrant:6333` | `https://qdrant.bluewave.work` | Vector store for RAG & workspace knowledge |
-| **Neo4j Graph DB** | `bolt://neo4j:7687` | `https://neo4j.bluewave.work` | Entity & relationship knowledge graph |
-| **Knowledge MCP** | `http://knowledge-mcp:8095/sse` | `https://knowledge-mcp.bluewave.work` | Semantic Search & Cypher Graph query tools |
-| **Sandbox MCP** | `http://agent-sandbox:8088/sse` | `https://sandbox.bluewave.work` | In-memory code execution (Bash, Python, C++, Java, LaTeX) |
+| Microservice | Internal Endpoint | Handled in Docker Compose | Handled in Web UI | Primary Purpose |
+| :--- | :--- | :---: | :---: | :--- |
+| **LiteLLM Gateway** | `http://litellm:4000/v1` | ✅ Auto | ⚙️ Verify & Default | Unified Router for Cloud (Claude, Gemini, GPT) & Local LLMs |
+| **Ollama Inference** | `http://ollama:11434/v1` | ✅ Auto | ⚙️ Verify & Refresh | Local sovereign models (`hermes3:8b`, `qwen2.5vl:3b`) |
+| **TEI Embeddings** | `http://embeddings:80/v1` | ✅ Auto | ⚙️ Verify in Retrieval | Dense vector embeddings (`BAAI/bge-m3`, 1024-dim) |
+| **TEI Reranker** | `http://reranker:80` | ✅ Auto | ⚙️ Verify in Retrieval | Cross-Encoder precision reranking (`BAAI/bge-reranker-v2-m3`) |
+| **Speaches STT** | `http://speaches:8000/v1` | ✅ Auto | ⚙️ Test in Audio | Faster-Whisper Large-v3 Speech-to-Text |
+| **Speaches TTS** | `http://speaches:8000/v1` | ✅ Auto | ⚙️ Select Voice in Audio | Kokoro-82M ONNX Text-to-Speech (`af_heart`) |
+| **SearXNG Search** | `http://searxng:8080` | ✅ Auto | ⚙️ Toggle in Web Search | Privacy-first metasearch aggregation |
+| **Firecrawl Scraper**| `http://firecrawl-api:3036` | ✅ Auto | — *(Hermes only)* | Deep web extraction & full Markdown rendering |
+| **Mem0 Memory** | `http://mem0-api:8000` | ✅ Auto | — *(Hermes only)* | Episodic, turn-by-turn conversational memory recall |
+| **Qdrant Vector DB** | `http://qdrant:6333` | ✅ Auto | ⚙️ Verify in Retrieval | Vector database storing RAG embeddings & workspace chunks |
+| **Neo4j Graph DB** | `bolt://neo4j:7687` | ✅ Auto | — *(Knowledge MCP)* | Entity & relationship knowledge graph |
+| **Knowledge MCP** | `http://knowledge-mcp:8095/sse` | ✅ Auto | — *(Hermes only)* | Semantic search & Cypher graph traversal tools |
+| **Agent Sandbox MCP**| `http://agent-sandbox:8088/sse` | ✅ Auto | — *(Hermes only)* | In-memory code execution (Python, C++, Java, LaTeX) |
 
 ---
 
-## Step 1: Deploying the Stack on `zap-srv`
+## 2. What is 100% Automated via Docker Compose & Config Files
 
-Connect to **`zap-srv`** (22 Cores, 48 GB RAM) via SSH:
+You do **NOT** need to write scripts or manually configure backend files for the items below. They are baked into `compose.yaml` and `config/config.yaml`.
+
+### 2.1 Hermes Agent Automated Integration
+- **LLM Routing**: Automatically routes all requests to LiteLLM (`http://litellm:4000/v1`) using `${LITELLM_API_KEY}`. Pre-configures model aliases (`hermes-default`, `hermes-vision`, `hermes-compression`, `mistral-codestral-latest-22B`).
+- **Execution Sandbox**: In-container terminal execution is disabled (`terminal.backend: disabled`). Hermes is wired directly to `http://agent-sandbox:8088/sse` with `${SANDBOX_API_KEY}` authentication for safe code execution in RAM.
+- **Semantic & Graph Knowledge**: Wired to `http://knowledge-mcp:8095/sse` for automated RAG, document retrieval, and Neo4j graph queries.
+- **Continuous Memory**: Configured with `memory.provider: mem0` pointing to `http://mem0-api:8000`. Hermes flushes facts every 6–10 turns automatically.
+- **Web Intelligence**: Wired to SearXNG (`http://searxng:8080`) for live search and Firecrawl (`http://firecrawl-api:3036`) for Markdown scraping.
+- **Speech Audio**: Configured with `stt.openai` pointing to Speaches (`http://speaches:8000/v1`) using `Systran/faster-whisper-large-v3`.
+- **Pre-baked Personalities**:
+  1. 🎓 `professor`: French academic co-pilot for ISET Kairouan (pedagogy, Docker/Proxmox labs, Bloom's taxonomy evaluations).
+  2. 🔬 `researcher`: English scientific writer for SE&TIC Lab (speech processing, autism acoustic biomarkers, IEEE publications).
+  3. ⚖️ `reviewer2`: Rigorous peer reviewer auditing methodology, statistical rigor, and baseline metrics.
+  4. 💼 `grant_writer`: Bilingual EU/Tunisian project specialist (Erasmus+, Horizon Europe, AUF).
+  5. 👨‍👧‍👧 `socratic_tutor`: Pedagogically calibrated tutor for daughters (Eya: English, Mariem & Sarra: French, Emna: Arabic).
+  6. ⚡ `productivity_advisor`: Executive workflow and cognitive optimization coach.
+
+### 2.2 Open-WebUI Automated Integration
+- **Model Endpoints**: Injected via `OPENAI_API_BASE_URLS` and native `OLLAMA_BASE_URL` (`http://litellm:4000/v1` and `http://ollama:11434`).
+- **Dense Vector RAG**: Pre-wired with `RAG_EMBEDDING_ENGINE=openai` pointing to `http://embeddings:80/v1` using `BAAI/bge-m3`.
+- **Reranker**: Pre-wired with `RAG_RERANKING_ENGINE=tei` pointing to `http://reranker:80` using `BAAI/bge-reranker-v2-m3`.
+- **Vector Store**: Pre-wired to `VECTOR_DB=qdrant` pointing to `http://qdrant:6333` with `${QDRANT_API_KEY}`.
+- **Speech Audio**: Pre-wired with Whisper STT and Kokoro TTS (`af_heart`) on `http://speaches:8000/v1`.
+- **Web Search**: Pre-wired to SearXNG with `SEARXNG_SEARCH_URL=http://searxng:8080/search?q=<query>`.
+- **Timeout Protection**: `HTTP_TIMEOUT=1800` and `AIOHTTP_TIMEOUT=1800` prevent timeouts during heavy RAG and large model generation.
+
+### 2.3 Workspace Knowledge Scanner Automated Ingestion
+- Automatically scans `/srv/data/ai-agents/workspace/hermes/workspace` on `zap-srv` every 15 minutes (`SCAN_INTERVAL_SECONDS=900`).
+- Computes SHA-256 hashes to skip unchanged files in `<1ms`.
+- Encodes new or modified files (PDF, Markdown, code, audio, images) and streams them to Knowledge MCP (`http://knowledge-mcp:8095/index-file`), updating Qdrant collections.
+
+### 2.4 Storage & Health Guard Automated Initialization
+- `init-volumes` initializes directory permissions (`775`) on `/srv/data/ai-agents/workspace` and `/srv/data/ai-agents/open-webui`.
+- Runs continuously with `sleep infinity` and an automated healthcheck so **Arcane Cockpit** marks the stack healthy without false-positive stopped warnings.
+
+---
+
+## 3. What Still Needs Configuration via the Web Interface
+
+Because Open-WebUI stores state in its internal database (`webui.db`) and Hermes Agent manages interactive user sessions, the following one-time steps must be completed in the web UI.
+
+### 3.1 Open-WebUI Web Interface Checklist
+*(URL: `https://open-webui.bluewave.work`)*
+
+- [ ] **First Account Creation**: The very first user to register automatically becomes the **Instance Administrator**.
+- [ ] **Verify Model Connections** (`Admin Panel` $\rightarrow$ `Settings` $\rightarrow$ `Connections`):
+  - Click the **Verify / Refresh** button next to LiteLLM and Ollama.
+  - Verify that the models appear in the list (`hermes-default`, `hermes3:8b`, `qwen2.5vl:3b`, `claude-3-5-sonnet`, `gemini-2.0-flash`).
+  - Set your preferred default model (e.g. `hermes-default` or `hermes3:8b`).
+- [ ] **Verify Audio Playback** (`Admin Panel` $\rightarrow$ `Settings` $\rightarrow$ `Audio`):
+  - Click **Verify** on STT (`http://speaches:8000/v1`).
+  - Click **Verify** on TTS (`http://speaches:8000/v1`).
+  - Ensure voice is set to `af_heart` (female) or `am_adam` (male).
+- [ ] **Tune Document Retrieval Parameters** (`Admin Panel` $\rightarrow$ `Settings` $\rightarrow$ `Retrieval`):
+  - Verify **Embedding Engine** shows `OpenAI` (`http://embeddings:80/v1`) with model `BAAI/bge-m3`.
+  - Verify **Reranking Engine** shows `tei` (`http://reranker:80`) with model `BAAI/bge-reranker-v2-m3`.
+  - Recommended RAG parameters:
+    - **Top K**: `5`
+    - **Score Threshold**: `0.50` (filters out irrelevant chunks)
+- [ ] **Verify Web Search** (`Admin Panel` $\rightarrow$ `Settings` $\rightarrow$ `Web Search`):
+  - Confirm **SearXNG Query URL** is `http://searxng:8080/search?q=<query>`.
+  - Toggle **Enable Web Search** ON.
+
+### 3.2 Hermes Agent Dashboard Checklist
+*(URL: `https://hermes.bluewave.work`)*
+
+- [ ] **Authelia SSO Authentication**: Authenticate using your Homelab SSO credentials.
+- [ ] **Hermes Basic Auth Login**: Enter the credentials configured in `.env` (`HERMES_DASHBOARD_BASIC_AUTH_USERNAME=mgrsys`).
+- [ ] **Active Personality Selection**:
+  - Test persona switching in the prompt box:
+    - Type `/profile professor` for teaching preparation.
+    - Type `/profile researcher` for SE&TIC paper writing.
+    - Type `/profile socratic_tutor` for family tutoring.
+- [ ] **Verify MCP Tools Registration**:
+  - Run `/tools` or inspect the startup log:
+    - `agent_sandbox` tools must be present (`agent_sandbox_execute_code`, etc.).
+    - `knowledge` tools must be present (`knowledge_search_knowledge`, `knowledge_query_knowledge_graph`, etc.).
+- [ ] **Verify Episodic Memory**:
+  - Type `/memory` to view current stored episodic memory points from Mem0.
+
+---
+
+## 4. Step-by-Step UI Setup Walkthrough
+
+### Step 4.1: Accessing Open-WebUI
+1. Open your browser and navigate to:
+   ```
+   https://open-webui.bluewave.work
+   ```
+2. Click **Sign Up** and create your master administrator account.
+3. Open **Admin Panel** (bottom-left avatar $\rightarrow$ **Admin Panel**).
+4. Navigate to **Settings** $\rightarrow$ **Connections**:
+   - Ensure the OpenAI API URL shows: `http://litellm:4000/v1`
+   - Ensure the Ollama API URL shows: `http://ollama:11434`
+   - Click the green refresh/sync icon to import all models into the dropdown.
+
+### Step 4.2: Testing Knowledge RAG in Open-WebUI
+1. In Open-WebUI, click **Workspace** $\rightarrow$ **Knowledge**.
+2. Click **+** to create a new collection (e.g., `Course-Algorithms` or `SETIC-Research`).
+3. Drag and drop any PDF or Markdown document.
+4. Watch the progress bar: Open-WebUI will vectorize the file via TEI (`bge-m3`) and save vectors to Qdrant (`http://qdrant:6333`).
+5. Open a new chat, type `#` followed by your collection name, and ask questions against the document.
+
+### Step 4.3: Testing Hermes Agent Personalities & Tools
+1. Navigate to:
+   ```
+   https://hermes.bluewave.work
+   ```
+2. Log in through Authelia and the Hermes Basic Auth prompt.
+3. In the chat prompt, test sandboxed execution:
+   ```
+   Hermes, run a Python script in the sandbox to generate the first 20 Fibonacci numbers.
+   ```
+   *Hermes will automatically invoke `agent_sandbox_execute_code` and print the output without running any code on the host machine.*
+4. Test knowledge graph querying:
+   ```
+   Hermes, search the knowledge base for any papers discussing speech recognition biomarkers.
+   ```
+   *Hermes will invoke `knowledge_search_knowledge` and return passages reranked by TEI.*
+
+---
+
+## 5. Operational Verification & Diagnostics
+
+Run these one-line health checks directly from **`zap-srv`** to verify all microservices respond within `<5ms`:
 
 ```bash
-cd ~/homelab-ai-agents
-git pull origin main
-
-# Validate configuration
-docker compose config
-
-# Start Hermes Agent, Workspace Scanner, and Open-WebUI
-docker compose up -d
-
-# Verify all 3 containers are running
-docker compose ps
-```
-
----
-
-## Step 2: Configuring Open-WebUI Admin Interface
-
-Navigate in your browser to: **`https://chat.bluewave.work`**
-
-### 2.1 First-Time Account Creation
-1. The first account registered automatically receives **Admin privileges**.
-2. Create your administrator account using your academic/professional email.
-
-### 2.2 Verify Model Connections (`Admin Panel` -> `Settings` -> `Connections`)
-The compose configuration pre-injects LiteLLM and Ollama:
-* **OpenAI API Endpoints**:
-  - `http://litellm:4000/v1` (Key: `${LITELLM_MASTER_KEY}`)
-  - `http://ollama:11434/v1` (Key: `ollama`)
-* Click the **Verify / Refresh** button to verify that all models appear (`hermes3:8b`, `qwen2.5vl:3b`, `claude-3-5-sonnet`, `gemini-2.0-flash`, `gpt-4o`).
-
-### 2.3 Audio Settings (`Admin Panel` -> `Settings` -> `Audio`)
-Configure real-time Speech-to-Text and Text-to-Speech using your local Speaches instance:
-* **Speech-to-Text (STT)**:
-  - **Engine**: `OpenAI`
-  - **API Base URL**: `http://speaches:8000/v1`
-  - **API Key**: *(leave blank or any string)*
-  - **Model**: `Systran/faster-whisper-large-v3`
-* **Text-to-Speech (TTS)**:
-  - **Engine**: `OpenAI`
-  - **API Base URL**: `http://speaches:8000/v1`
-  - **API Key**: *(leave blank or any string)*
-  - **Model**: `speaches-ai/Kokoro-82M-v1.0-ONNX`
-  - **Voice**: `af_heart` (or `am_adam`, `bf_emma`)
-
-### 2.4 Document RAG & Embedding Settings (`Admin Panel` -> `Settings` -> `Retrieval`)
-Configure dense vector search and cross-encoder reranking:
-* **Embedding Engine**: `OpenAI`
-  - **Embedding URL**: `http://embeddings:80/v1`
-  - **API Key**: *(leave blank)*
-  - **Embedding Model**: `BAAI/bge-m3`
-* **Reranking Engine**: `tei` (Text Embeddings Inference)
-  - **TEI Base URL**: `http://reranker:80`
-  - **Reranker Model**: `BAAI/bge-reranker-v2-m3`
-* **Vector Database**: `Qdrant`
-  - **Qdrant URL**: `http://qdrant:6333`
-  - **Qdrant API Key**: `${QDRANT_API_KEY}`
-* **RAG Top-K**: `5`
-* **Relevance Score Threshold**: `0.50`
-
-### 2.5 Web Search Integration (`Admin Panel` -> `Settings` -> `Web Search`)
-* **Enable Web Search**: `ON`
-* **Search Engine**: `SearXNG`
-* **SearXNG Query URL**: `http://searxng:8080/search?q=<query>`
-
----
-
-## Step 3: Mastering Hermes Agent Personalities & Tools
-
-Access the Hermes Dashboard at: **`https://agents.bluewave.work`** *(Authelia SSO protected)*.
-
-Hermes Agent is configured with 6 specialized personas tailored to your workflow:
-
-### 1. 🎓 `professor` (Teaching at ISET Kairouan)
-* **Language**: French.
-* **Focus**: Computer Science pedagogy (Algorithms & Data Structures, Big Data, Machine Learning, Agentic AI).
-* **Workflow**: Designs Bloom-aligned syllabi, crystal-clear French lecture notes, reproducible Docker/Proxmox lab guides, and Continuous Verification Loop (CVL) evaluations.
-* **Code/LaTeX Execution**: Automatically delegates lab code tests and LaTeX exam compilation to `agent_sandbox` MCP.
-
-### 2. 🔬 `researcher` (Senior Scientist at SE&TIC Lab)
-* **Language**: English.
-* **Focus**: Robust Speech Recognition, Autism acoustic biomarker detection, Ultrasound rock analysis with ML, and AI in Education.
-* **Workflow**: Produces publication-grade IEEE/Springer manuscripts, rigorous mathematical equations, and PyTorch experiment validation with strict metrics (Accuracy, EER, F1-Score).
-
-### 3. ⚖️ `reviewer2` (Strict IEEE Peer Reviewer)
-* **Language**: English.
-* **Focus**: Audits experimental methodologies, checks baseline comparisons, identifies potential data leakage, and scrutinizes statistical significance.
-
-### 4. 💼 `grant_writer` (International Project Funding)
-* **Language**: English (Erasmus+, Horizon Europe) & French (DAF, AUF).
-* **Focus**: Builds structured Logical Frameworks (LogFrames), precise Work Packages (WPs), Gantt milestones, and measurable socio-economic impact matrices tailored for Tunisian higher education.
-
-### 5. 👨‍👧‍👧 `socratic_tutor` (Calibrated Pedagogical Tutor for Daughters)
-* **Pedagogical Rule**: Never gives direct answers immediately; uses progressive scaffolding and Socratic questioning.
-* **Calibrated Languages**:
-  - **Eya** (University Year 2): English (Algorithms, data structures, system architecture).
-  - **Mariem** (High School Year 2 - Sciences): French (Math, Physics, Chemistry, SVT).
-  - **Sarra** (High School Year 1 - Python/Math): French (Python programming, algebra, geometry).
-  - **Emna** (Basic School Year 2 / 8ème de base): Modern Standard Arabic (*العربية الفصحى*) with engaging, simplified analogies.
-
-### 6. ⚡ `productivity_advisor` (Executive Meta-Coach)
-* **Language**: English.
-* **Focus**: Audits time allocation across Teaching, Research, Grants, and Family; detects context-switching friction; and provides proactive productivity recommendations.
-
----
-
-## Step 4: Leveraging Hybrid Memory (Mem0 + Knowledge MCP)
-
-Hermes operates with a dual-layer memory system:
-
-### 1. Episodic Dialogue Memory (Mem0 REST)
-* **How it works**: Hermes automatically flushes dialogue facts, user preferences, and project updates to `http://mem0-api:8000` in the background.
-* **Benefit**: Zero manual intervention. When you start a new conversation and mention *"Continue where we left off on the autism speech dataset"*, Hermes recalls previous facts automatically.
-
-### 2. Semantic Document & Graph RAG (Knowledge MCP)
-Hermes possesses explicit tools connected via SSE:
-* **`search_knowledge`**:
-  - *Prompt*: *"Hermes, search our knowledge base for the acoustic feature extraction parameters used in the SE&TIC journal paper."*
-  - *Action*: Hermes executes `search_knowledge(query="acoustic feature extraction", collection="workspace")`, which retrieves relevant passages from Qdrant and reranks them with the TEI Cross-Encoder.
-* **`query_knowledge_graph`**:
-  - *Prompt*: *"Find all research projects connected to speaker recognition and check their associated datasets."*
-  - *Action*: Hermes executes a Cypher query on Neo4j to traverse entity connections.
-
----
-
-## Step 5: Sandboxed Code Execution via MCP
-
-Local container command execution is disabled (`terminal.backend: disabled`) for security. Hermes delegates 100% of execution to the in-memory **Agent Sandbox MCP**:
-
-### Example Interactions
-1. **Python Data Analysis**:
-   > *"Hermes, write a script to calculate the Equal Error Rate (EER) on this prediction array and run it in the sandbox."*
-   - Hermes generates the code, invokes `agent_sandbox.execute_code(language="python", code=...)`, and returns the stdout and execution time.
-2. **C / C++ / Java Execution**:
-   > *"Test this graph traversal algorithm in C++20 with custom test cases."*
-   - Hermes compiles and executes the program in RAM via GCC/G++ with strict timeouts.
-3. **LaTeX Document Compilation**:
-   > *"Compile this IEEE conference paper draft into a PDF."*
-   - Hermes invokes Tectonic in the sandbox and verifies that the PDF compiles without errors.
-
----
-
-## Step 6: Workspace Indexing & Knowledge Ingestion
-
-Hermes and the Knowledge Walker use the persistent workspace directory on `zap-srv`:
-`/srv/data/ai-agents/workspace/hermes/workspace`
-
-### 1. Adding Documents to Knowledge
-Simply drop your files into `/srv/data/ai-agents/workspace/hermes/workspace`:
-- **PDFs**: Lecture notes, IEEE papers, grant proposals (automatically OCR'd and parsed page-by-page).
-- **Code & Text**: Python scripts, C/C++ files, Markdown documents (`.md`).
-- **Audio**: Speech recordings (`.wav`, `.mp3`) automatically transcribed by Whisper.
-- **Images**: Architectural diagrams, charts (analyzed by Qwen2.5-VL).
-
-### 2. Automatic Periodic Scanning
-The `workspace-scanner` container runs in the background:
-- **Scan Interval**: Every 15 minutes (configurable via `SCAN_INTERVAL_SECONDS`).
-- **SHA-256 Incremental Cache**: Skips unchanged files in `<1ms`.
-- **Distributed Ingestion**: Encodes new/modified documents as Base64 and streams them to Knowledge MCP on `oci01-flex`, storing vectors into Qdrant.
-- **Automatic Cleanup**: Deleting a file from `/workspace` removes its vectors from Qdrant during the next scan.
-
-### 3. On-Demand Instant Indexing
-To trigger an immediate scan without waiting 15 minutes:
-```bash
-docker exec -it hermes_workspace_scanner python3 /usr/local/bin/sync_workspace.py
-```
-Or directly inside Hermes Agent:
-> *"Hermes, run the workspace sync script to index the new slides I just uploaded."*
-
----
-
-## Verification & Health Diagnostics
-
-Run these one-line commands from `zap-srv` to verify that all inter-service connections are operational:
-
-```bash
-# 1. Test LiteLLM Gateway
+# 1. Test LiteLLM Proxy
 curl -s http://100.83.191.68:4000/health/readiness | jq .
 
 # 2. Test Local Ollama Models
 curl -s http://localhost:11434/api/tags | jq '.models[].name'
 
-# 3. Test TEI Embeddings
+# 3. Test TEI Dense Embeddings
 curl -s -X POST http://localhost:80/embed \
   -H "Content-Type: application/json" \
   -d '{"inputs": "Homelab AI Verification"}' | head -c 80
 
-# 4. Test TEI Reranker
+# 4. Test TEI Cross-Encoder Reranker
 curl -s -X POST http://localhost:8080/rerank \
   -H "Content-Type: application/json" \
-  -d '{"query": "machine learning", "texts": ["deep neural network", "chocolate cake recipe"]}' | jq .
+  -d '{"query": "speech recognition", "texts": ["acoustic biomarkers in autism", "chocolate cake recipe"]}' | jq .
 
 # 5. Test Speaches Whisper STT
 curl -s http://localhost:8000/health | jq .
@@ -239,23 +194,12 @@ curl -s http://localhost:8000/health | jq .
 # 6. Test Knowledge MCP
 curl -s http://100.83.191.68:8095/health | jq .
 
-# 7. Test Agent Sandbox MCP
-curl -s http://100.83.191.68:8088/health | jq .
+# 7. Test Agent Execution Sandbox
+curl -s http://localhost:8088/health | jq .
 
-# 8. Test Qdrant Vector Store
+# 8. Test Qdrant Vector DB
 curl -s http://100.83.191.68:6333/collections | jq .
+
+# 9. Trigger Instant Workspace Scan
+docker exec -it hermes_workspace_scanner python3 /usr/local/bin/sync_workspace.py
 ```
-
----
-
-## 🔒 Summary Checklist for Daily Production Use
-
-- [x] Stack running on **`zap-srv`** (22 Cores, 48 GB RAM).
-- [x] Zero exposed host ports (`ports:` omitted in `compose.yaml`).
-- [x] Ingress routed via Traefik:
-  - Open-WebUI: `https://chat.bluewave.work`
-  - Hermes Dashboard: `https://agents.bluewave.work` (Authelia SSO)
-- [x] Hybrid Memory active (Mem0 automatic recall + Knowledge MCP on-demand search).
-- [x] Sandbox MCP active for all compilation & script execution.
-- [x] Incremental `/workspace` scanner active (auto-indexing every 15 minutes).
-- [x] Reboot resilience guaranteed via `homelab-boot-guard.service` in `homelab-nodes`.

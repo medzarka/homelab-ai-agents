@@ -184,6 +184,8 @@ services:
       # --- 2. LLM Chat Models (LiteLLM Gateway & Ollama fallback) ---
       - OPENAI_API_BASE_URLS=${LITELLM_API_BASE:-http://litellm:4000/v1};${OLLAMA_API_BASE:-http://ollama:11434/v1}
       - OPENAI_API_KEYS=${LITELLM_MASTER_KEY:-};ollama
+      - ENABLE_OLLAMA_API=true
+      - OLLAMA_BASE_URL=${OLLAMA_API_BASE:-http://ollama:11434}
       
       # --- 3. TEI Embeddings & Reranker Engine ---
       - RAG_EMBEDDING_ENGINE=openai
