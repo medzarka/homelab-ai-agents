@@ -8,13 +8,13 @@
 model:
   default: hermes-default
   provider: custom
-  base_url: ${LITELLM_API_BASE:-http://litellm:4000/v1}
-  api_key: ${LITELLM_API_KEY:-}
+  base_url: http://litellm:4000/v1
+  api_key: ""
 
 providers:
   custom:
-    base_url: ${LITELLM_API_BASE:-http://litellm:4000/v1}
-    api_key: ${LITELLM_API_KEY:-}
+    base_url: http://litellm:4000/v1
+    api_key: ""
     models:
       - hermes-default
       - hermes-vision
@@ -98,11 +98,11 @@ tools:
   web_search:
     enabled: true
     provider: searxng
-    base_url: ${SEARXNG_BASE_URL:-http://searxng:8080}
+    base_url: http://searxng:8080
   firecrawl:
     enabled: true
-    api_url: ${FIRECRAWL_API_URL:-http://firecrawl-api:3036}
-    api_key: ${FIRECRAWL_API_KEY:-}
+    api_url: http://firecrawl-api:3036
+    api_key: ""
 
 # --- Hybrid Memory Architecture ---
 # 1. Background Automatic Conversational Memory via Mem0 REST API
@@ -112,42 +112,40 @@ memory:
   memory_char_limit: 4000
   user_char_limit: 3000
   provider: mem0
-  api_url: ${MEM0_API_URL:-http://mem0-api:8000}
-  host: ${MEM0_API_URL:-http://mem0-api:8000}
-  api_key: ${MEM0_API_KEY:-dummy-local-key}
+  api_url: http://mem0-api:8000
+  host: http://mem0-api:8000
+  api_key: ""
   nudge_interval: 10
   flush_min_turns: 6
 
 # 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
 mcp_servers:
   knowledge:
-    url: ${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/sse}
+    url: http://knowledge-mcp:8095/sse
   agent_sandbox:
-    url: ${SANDBOX_MCP_URL:-http://agent-sandbox:8088/sse}
-    headers:
-      Authorization: "Bearer ${SANDBOX_API_KEY:-}"
+    url: http://agent-sandbox:8088/sse
 
 # --- Speech-to-Text (Faster-Whisper via Speaches) ---
 stt:
   enabled: true
   language: en
   openai:
-    base_url: ${SPEACHES_BASE_URL:-http://speaches:8000/v1}
-    api_key: ${SPEACHES_API_KEY:-}
+    base_url: http://speaches:8000/v1
+    api_key: ""
     model: Systran/faster-whisper-large-v3
 
 # --- Text Embeddings (BAAI/bge-m3 via TEI) ---
 embeddings:
   provider: custom
   model: BAAI/bge-m3
-  base_url: ${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
-  api_key: ${TEI_API_KEY:-}
+  base_url: http://embeddings:80/v1
+  api_key: ""
 
 # --- Dashboard & Gateway ---
 webui:
   dashboard:
     enabled: true
-    url: https://agents.${ROOT_DOMAIN:-bluewave.work}
+    url: https://hermes.bluewave.work
 
 platforms:
   api_server:

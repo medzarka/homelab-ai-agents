@@ -14,7 +14,7 @@ services:
     image: alpine:latest
     container_name: ai_agents_init_volumes
     user: "0:0"
-    restart: "no"
+    restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}:/data
     entrypoint: ["/bin/sh", "-c"]
@@ -26,7 +26,14 @@ services:
 
         echo ">>> [Init] Setting volume ownership and permissions..."
         chmod -R 775 /data/workspace /data/open-webui
-        echo ">>> [Init] Storage volumes initialized successfully!"
+        echo ">>> [Init] Storage volumes initialized successfully! Guard active."
+        sleep infinity
+    healthcheck:
+      test: ["CMD-SHELL", "test -d /data/workspace/hermes/workspace && test -d /data/open-webui || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   # ========================================================
   # NOUS RESEARCH HERMES AGENT (Core Agentic Gateway & Engine)
@@ -101,7 +108,7 @@ services:
       - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
     depends_on:
       init-volumes:
-        condition: service_completed_successfully
+        condition: service_healthy
     networks:
       - shared_net
       - homelab_swarm_net
@@ -147,7 +154,7 @@ services:
         done
     depends_on:
       init-volumes:
-        condition: service_completed_successfully
+        condition: service_healthy
     networks:
       - shared_net
       - homelab_swarm_net
@@ -215,7 +222,7 @@ services:
 
     depends_on:
       init-volumes:
-        condition: service_completed_successfully
+        condition: service_healthy
     networks:
       - shared_net
       - homelab_swarm_net
