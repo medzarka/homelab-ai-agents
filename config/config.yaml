@@ -9,12 +9,12 @@ model:
   default: hermes-default
   provider: custom
   base_url: http://litellm:4000/v1
-  api_key: ""
+  api_key: ${LITELLM_API_KEY}
 
 providers:
   custom:
     base_url: http://litellm:4000/v1
-    api_key: ""
+    api_key: ${LITELLM_API_KEY}
     models:
       - hermes-default
       - hermes-vision
@@ -102,7 +102,7 @@ tools:
   firecrawl:
     enabled: true
     api_url: http://firecrawl-api:3036
-    api_key: ""
+    api_key: ${FIRECRAWL_API_KEY}
 
 # --- Hybrid Memory Architecture ---
 # 1. Background Automatic Conversational Memory via Mem0 REST API
@@ -114,7 +114,7 @@ memory:
   provider: mem0
   api_url: http://mem0-api:8000
   host: http://mem0-api:8000
-  api_key: ""
+  api_key: ${MEM0_API_KEY}
   nudge_interval: 10
   flush_min_turns: 6
 
@@ -124,6 +124,8 @@ mcp_servers:
     url: http://knowledge-mcp:8095/sse
   agent_sandbox:
     url: http://agent-sandbox:8088/sse
+    headers:
+      Authorization: "Bearer ${SANDBOX_API_KEY}"
 
 # --- Speech-to-Text (Faster-Whisper via Speaches) ---
 stt:
