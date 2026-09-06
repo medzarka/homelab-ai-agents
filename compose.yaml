@@ -1,7 +1,8 @@
 # ==============================================================================
 # HOMELAB AI AGENTS STACK
-# Services: Hermes Agent, Mem0 Memory (PGVector + Neo4j), Qdrant & Open-WebUI
-# Optimized for ARM64 / Orange Pi 5 Plus (8 Cores RK3588, 32GB RAM)
+# Services: Hermes Agent (Gateway & Dashboard), Workspace Scanner & Open-WebUI
+# Fully integrated with Homelab Microservices (Ollama, TEI, Speaches, Mem0, Qdrant, Sandbox)
+# Multi-Arch Ready: linux/amd64 and linux/arm64
 # ==============================================================================
 
 services:
@@ -19,21 +20,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        echo ">>> [Init] Creating storage directories under /data..."
+        echo ">>> [Init] Initializing Hermes Agent & Open-WebUI storage directories..."
         mkdir -p /data/workspace/hermes/workspace /data/workspace/hermes/output
-        mkdir -p /data/mem0/pgdata /data/mem0/history
-        mkdir -p /data/neo4j/data /data/neo4j/logs
-        mkdir -p /data/qdrant /data/open-webui
+        mkdir -p /data/open-webui
 
         echo ">>> [Init] Setting volume ownership and permissions..."
-        # 999:999 for PostgreSQL (pgvector)
-        chown -R 999:999 /data/mem0/pgdata
-        chmod -R 700 /data/mem0/pgdata
-
-        # 7474:7474 for Neo4j
-        chown -R 7474:7474 /data/neo4j/data /data/neo4j/logs 2>/dev/null || true
-        chmod -R 775 /data/workspace /data/mem0/history /data/neo4j /data/qdrant /data/open-webui
-
+        chmod -R 775 /data/workspace /data/open-webui
         echo ">>> [Init] Storage volumes initialized successfully!"
 
   # ========================================================
@@ -45,8 +37,6 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
-    group_add:
-      - "990" # Host docker GID for container spawning
     ports:
       - "${HERMES_GATEWAY_PORT:-8642}:8642"   # Agent Gateway API
       - "${HERMES_DASHBOARD_PORT:-9119}:9119" # Agent Dashboard
@@ -55,7 +45,8 @@ services:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes:/opt/data
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/workspace
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/output:/output
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/config.yaml:/opt/data/config.yaml:ro
+      - ./scripts:/workspace/scripts:ro
     environment:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - MEDIA_WORKSPACE_HOST_ROOT=${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes
@@ -67,27 +58,43 @@ services:
       - HERMES_GATEWAY_NO_SUPERVISE=1
       - HERMES_WRITE_SAFE_ROOT=/workspace
 
-      # LiteLLM Proxy / OpenAI-Compatible Backend
-      - LITELLM_API_BASE=${LITELLM_API_BASE}
+      # LiteLLM Proxy / Model Gateway
+      - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}
       - LITELLM_API_KEY=${LITELLM_MASTER_KEY}
-      - INFINITY_API_KEY=${INFINITY_API_KEY}
-      - INFINITY_API_BASE=${INFINITY_API_BASE}
-
-      # Web Search, Docling, Qdrant and Firecrawl
-      - WEB_SEARCH_BACKEND=searxng
-      - WEB_EXTRACT_BACKEND=firecrawl
-      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL}
-      - SEARXNG_URL=${SEARXNG_BASE_URL}
-      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
-      - DOCLING_API_URL=${DOCLING_API_URL}
-      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
-      - QDRANT_API_KEY=${QDRANT_API_KEY}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+      - LLM_MODEL=${LLM_MODEL:-hermes-default}
       - VLM_MODEL=${VLM_MODEL:-hermes-vision}
 
+      # Text Embeddings via TEI
+      - EMBEDDINGS_API_BASE=${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
+      - TEI_API_KEY=${TEI_API_KEY:-}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+
+      # Web Search & Extraction Tools
+      - WEB_SEARCH_BACKEND=searxng
+      - WEB_EXTRACT_BACKEND=firecrawl
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://searxng:8080}
+      - SEARXNG_URL=${SEARXNG_BASE_URL:-http://searxng:8080}
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3036}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+
+      # Conversational Memory Backend (Mem0 on homelab-ai-knowledge)
+      - MEMORY_BACKEND=mem0
+      - MEM0_API_URL=${MEM0_API_URL:-http://mem0-api:8000}
+      - MEM0_HOST=${MEM0_API_URL:-http://mem0-api:8000}
+      - MEM0_BASE_URL=${MEM0_API_URL:-http://mem0-api:8000}
+      - MEM0_API_KEY=${MEM0_API_KEY:-dummy-local-key}
+
+      # Model Context Protocol (MCP) Integration
+      - KNOWLEDGE_MCP_URL=${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/sse}
+      - SANDBOX_MCP_URL=${SANDBOX_MCP_URL:-http://agent-sandbox:8088/sse}
+      - SANDBOX_API_KEY=${SANDBOX_API_KEY:-}
+
+      # Speech-To-Text via Speaches (Systran/faster-whisper-large-v3)
+      - SPEACHES_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
+      - SPEACHES_API_KEY=${SPEACHES_API_KEY:-}
+
       # Git Integration
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
 
       # Dashboard Settings
       - HERMES_DASHBOARD=true
@@ -96,26 +103,15 @@ services:
       - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
       - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD}
       - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
-
-      # Mem0 Conversational Memory Backend
-      - MEMORY_BACKEND=mem0
-      - MEM0_API_URL=http://mem0-api:8000
-      - MEM0_HOST=http://mem0-api:8000
-      - MEM0_BASE_URL=http://mem0-api:8000
-      - MEM0_API_KEY=dummy-local-key
     depends_on:
       init-volumes:
         condition: service_completed_successfully
-      mem0-api:
-        condition: service_started
-      qdrant:
-        condition: service_healthy
     networks:
       - shared_net
       - homelab_swarm_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.hermes.rule=Host(`hermes.${ROOT_DOMAIN:-example.com}`, `agents.${ROOT_DOMAIN:-example.com}`)"
+      - "traefik.http.routers.hermes.rule=Host(`hermes.${ROOT_DOMAIN:-bluewave.work}`, `agents.${ROOT_DOMAIN:-bluewave.work}`)"
       - "traefik.http.routers.hermes.entrypoints=websecure"
       - "traefik.http.routers.hermes.tls=true"
       - "traefik.http.routers.hermes.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file"
@@ -128,219 +124,34 @@ services:
         max-file: "3"
 
   # ========================================================
-  # MEM0 CONVERSATIONAL MEMORY STACK (PGVector + Neo4j + REST API)
+  # WORKSPACE KNOWLEDGE SCANNER (Automated Periodic Sync)
   # ========================================================
-  mem0-pgvector:
-    image: pgvector/pgvector:pg16
-    container_name: mem0-pgvector
+  workspace-scanner:
+    image: python:3.11-alpine
+    container_name: hermes_workspace_scanner
     restart: unless-stopped
-    shm_size: 512mb
-    environment:
-      - POSTGRES_USER=${MEM0_PG_USER:-postgres}
-      - POSTGRES_PASSWORD=${MEM0_PG_PASSWORD:-postgres}
-      - POSTGRES_DB=${MEM0_PG_DB:-mem0}
     volumes:
-      - ${DATA_DIR:-/srv/data/ai-agents}/mem0/pgdata:/var/lib/postgresql/data
-    ports:
-      - "${MEM0_PG_PORT:-5432}:5432"
-    depends_on:
-      init-volumes:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MEM0_PG_USER:-postgres} -d ${MEM0_PG_DB:-mem0}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      shared_net:
-        aliases:
-          - postgres
-      homelab_swarm_net:
-        aliases:
-          - postgres
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  neo4j:
-    image: neo4j:5.21.0-community
-    container_name: neo4j
-    restart: unless-stopped
+      - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/workspace
+      - ./scripts/sync_workspace.py:/usr/local/bin/sync_workspace.py:ro
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-mem0graph_secure_pass}
-      - NEO4J_PLUGINS=["apoc"]
-      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
-      # Performance tuning for 32GB RAM node
-      - NEO4J_server_memory_heap_initial__size=1G
-      - NEO4J_server_memory_heap_max__size=2G
-      - NEO4J_server_memory_pagecache_size=1G
-    volumes:
-      - ${DATA_DIR:-/srv/data/ai-agents}/neo4j/data:/data
-      - ${DATA_DIR:-/srv/data/ai-agents}/neo4j/logs:/logs
-    ports:
-      - "${NEO4J_HTTP_PORT:-7474}:7474" # HTTP Browser Console
-      - "${NEO4J_BOLT_PORT:-7687}:7687" # Bolt protocol
-    depends_on:
-      init-volumes:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - shared_net
-      - homelab_swarm_net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  mem0-api:
-    image: mem0/mem0-api-server:latest
-    container_name: mem0-api
-    restart: unless-stopped
-    ports:
-      - "${MEM0_API_PORT:-8000}:8000"
-    environment:
-      - VECTOR_STORE=pgvector
-      - MEM0_DIR=/app/.mem0
-      - HISTORY_DB_PATH=/app/.mem0/history.db
-      - PGVECTOR_DB_URL=postgresql+psycopg2://${MEM0_PG_USER:-postgres}:${MEM0_PG_PASSWORD:-postgres}@mem0-pgvector:5432/${MEM0_PG_DB:-mem0}
-      - PGVECTOR_USER=${MEM0_PG_USER:-postgres}
-      - PGVECTOR_PASSWORD=${MEM0_PG_PASSWORD:-postgres}
-      - PGVECTOR_HOST=mem0-pgvector
-      - PGVECTOR_PORT=5432
-      - PGVECTOR_DB=${MEM0_PG_DB:-mem0}
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USERNAME=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-mem0graph_secure_pass}
-      - OPENAI_BASE_URL=${LITELLM_API_BASE}
-      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
-      - LLM_MODEL=${LLM_MODEL:-hermes-default}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
-    volumes:
-      - ${DATA_DIR:-/srv/data/ai-agents}/mem0/history:/app/.mem0
-    entrypoint: ["/bin/sh", "-c"]
+      - WORKSPACE_DIR=/workspace
+      - KNOWLEDGE_MCP_HTTP_URL=${KNOWLEDGE_MCP_HTTP_URL:-http://knowledge-mcp:8095}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-workspace}
+      - SCAN_INTERVAL_SECONDS=${SCAN_INTERVAL_SECONDS:-900}
     command:
+      - /bin/sh
+      - -c
       - |
-        echo ">>> [Mem0] Installing required runtime database drivers..."
-        pip install --no-cache-dir psycopg[pool] psycopg2-binary networkx langchain-neo4j rank-bm25
-
-        echo ">>> [Mem0] Starting Uvicorn API server in background..."
-        uvicorn main:app --host 0.0.0.0 --port 8000 &
-
-        echo ">>> [Mem0] Waiting for API server to be ready..."
-        python3 -c "
-        import urllib.request, time
-        while True:
-            try:
-                urllib.request.urlopen('http://127.0.0.1:8000/openapi.json').read()
-                break
-            except Exception:
-                time.sleep(2)
-        "
-
-        echo ">>> [Mem0] API is up! Applying dynamic configuration..."
-        python3 -c "
-        import urllib.request, json, os
-
-        cfg = {
-            'version': 'v1.1',
-            'vector_store': {
-                'provider': 'pgvector',
-                'config': {
-                    'host': 'mem0-pgvector',
-                    'port': 5432,
-                    'dbname': os.environ.get('PGVECTOR_DB', 'mem0'),
-                    'user': os.environ.get('PGVECTOR_USER', 'postgres'),
-                    'password': os.environ.get('PGVECTOR_PASSWORD', 'postgres'),
-                    'collection_name': 'memories'
-                }
-            },
-            'graph_store': {
-                'provider': 'neo4j',
-                'config': {
-                    'url': os.environ.get('NEO4J_URI', 'bolt://neo4j:7687'),
-                    'username': os.environ.get('NEO4J_USERNAME', 'neo4j'),
-                    'password': os.environ.get('NEO4J_PASSWORD', 'mem0graph_secure_pass')
-                }
-            },
-            'llm': {
-                'provider': 'openai',
-                'config': {
-                    'api_key': os.environ.get('OPENAI_API_KEY', ''),
-                    'openai_base_url': os.environ.get('OPENAI_BASE_URL', ''),
-                    'model': os.environ.get('LLM_MODEL', 'hermes-default')
-                }
-            },
-            'embedder': {
-                'provider': 'openai',
-                'config': {
-                    'api_key': os.environ.get('OPENAI_API_KEY', ''),
-                    'openai_base_url': os.environ.get('OPENAI_BASE_URL', ''),
-                    'model': os.environ.get('EMBEDDING_MODEL', 'BAAI/bge-m3')
-                }
-            },
-            'history_db_path': '/app/.mem0/history.db'
-        }
-
-        try:
-            req = urllib.request.Request('http://127.0.0.1:8000/configure', method='POST')
-            req.add_header('Content-Type', 'application/json')
-            with urllib.request.urlopen(req, data=json.dumps(cfg).encode('utf-8')) as res:
-                print('Configuration response:', res.read().decode('utf-8'))
-        except Exception as e:
-            print('Configuration notice:', e)
-        "
-
-        echo ">>> [Mem0] Configuration applied! Waiting on service..."
-        wait
+        echo ">>> [Workspace Scanner] Automated periodic scanner active (Interval: $${SCAN_INTERVAL_SECONDS:-900}s)"
+        sleep 20
+        while true; do
+          python3 /usr/local/bin/sync_workspace.py || true
+          echo ">>> [Workspace Scanner] Next scan in $${SCAN_INTERVAL_SECONDS:-900}s..."
+          sleep $${SCAN_INTERVAL_SECONDS:-900}
+        done
     depends_on:
       init-volumes:
         condition: service_completed_successfully
-      mem0-pgvector:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-    networks:
-      - shared_net
-      - homelab_swarm_net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ========================================================
-  # QDRANT VECTOR DATABASE (Local Vector Store for Open-WebUI & Agents)
-  # ========================================================
-  qdrant:
-    image: qdrant/qdrant:v1.18.0
-    container_name: qdrant
-    platform: linux/arm64
-    restart: unless-stopped
-    ports:
-      - "${QDRANT_HTTP_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
-    volumes:
-      - ${DATA_DIR:-/srv/data/ai-agents}/qdrant:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
-    depends_on:
-      init-volumes:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/127.0.0.1/6333' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
     networks:
       - shared_net
       - homelab_swarm_net
@@ -356,7 +167,6 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
-    platform: linux/arm64
     restart: unless-stopped
     ports:
       - "${OPEN_WEBUI_PORT:-3030}:8080"
@@ -370,51 +180,54 @@ services:
       - BYPASS_MODEL_ACCESS_CONTROL=true
       - WEBUI_WORKERS=${WEBUI_WORKERS:-4}
 
-      # --- 2. LLM Chat Models ---
-      - OPENAI_API_BASE_URLS=${LITELLM_API_BASE}
-      - OPENAI_API_KEYS=${LITELLM_MASTER_KEY}
+      # --- 2. LLM Chat Models (LiteLLM Gateway & Ollama fallback) ---
+      - OPENAI_API_BASE_URLS=${LITELLM_API_BASE:-http://litellm:4000/v1};${OLLAMA_API_BASE:-http://ollama:11434/v1}
+      - OPENAI_API_KEYS=${LITELLM_MASTER_KEY:-};ollama
       
-      # --- 3. Infinity Embeddings & RAG Engine ---
+      # --- 3. TEI Embeddings & Reranker Engine ---
       - RAG_EMBEDDING_ENGINE=openai
-      - RAG_OPENAI_API_BASE_URL=${INFINITY_API_BASE}
-      - RAG_OPENAI_API_KEY=${INFINITY_API_KEY}
+      - RAG_OPENAI_API_BASE_URL=${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
+      - RAG_OPENAI_API_KEY=${TEI_API_KEY:-}
       - RAG_EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+      - RAG_RERANKING_ENGINE=tei
+      - RAG_RERANKING_TEI_BASE_URL=${RERANKER_API_BASE:-http://reranker:80}
+      - RAG_RERANKING_MODEL_NAME=BAAI/bge-reranker-v2-m3
 
       # --- 4. SearXNG Web Search Integration ---
       - ENABLE_RAG_WEB_SEARCH=True
       - RAG_WEB_SEARCH_ENGINE=searxng
-      - SEARXNG_SEARCH_URL=${SEARXNG_BASE_URL}/search?q=<query>
+      - SEARXNG_SEARCH_URL=${SEARXNG_BASE_URL:-http://searxng:8080}/search?q=<query>
       - BYPASS_WEB_SEARCH_WEB_LOADER=True
 
-      # --- 5. Docling Document Parsing & Vision Extraction ---
-      - RAG_FILE_MAX_SIZE=100
-      - CONTENT_EXTRACTION_ENGINE=docling
-      - DOCLING_SERVER_URL=${DOCLING_API_URL}
-      - DOCLING_PARAMS={"include_images":true,"do_picture_description":true,"picture_description_options":{"engine":"api","url":"${LITELLM_API_BASE}/chat/completions","api_key":"${LITELLM_MASTER_KEY}","model":"google-gemini-3.1-flash-lite","prompt":"Analyze this image, chart, map, or diagram. Extract the axis labels, numerical trends, visual data structures, and provide a clear description for an academic knowledge base."}}
+      # --- 5. Speaches Audio STT & TTS Engine ---
+      - AUDIO_STT_ENGINE=openai
+      - AUDIO_STT_OPENAI_API_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
+      - AUDIO_STT_OPENAI_API_KEY=${SPEACHES_API_KEY:-}
+      - AUDIO_STT_MODEL=Systran/faster-whisper-large-v3
+      - AUDIO_TTS_ENGINE=openai
+      - AUDIO_TTS_OPENAI_API_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
+      - AUDIO_TTS_OPENAI_API_KEY=${SPEACHES_API_KEY:-}
+      - AUDIO_TTS_MODEL=speaches-ai/Kokoro-82M-v1.0-ONNX
+      - AUDIO_TTS_VOICE=af_heart
 
-      # Timeouts
-      - HTTP_TIMEOUT=1800
-      - DOCLING_TIMEOUT=1800
-      - AIOHTTP_TIMEOUT=1800
-      - AUDIO_TTS_ENGINE=web
-      - AUDIO_STT_ENGINE=web
-
-      # --- 6. Vector Database integration via Qdrant ---
+      # --- 6. Vector Database Integration via Qdrant ---
       - VECTOR_DB=qdrant
-      - QDRANT_URI=http://qdrant:6333
-      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_URI=${QDRANT_URL:-http://qdrant:6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+
+      # --- 7. Timeouts ---
+      - HTTP_TIMEOUT=1800
+      - AIOHTTP_TIMEOUT=1800
 
     depends_on:
       init-volumes:
         condition: service_completed_successfully
-      qdrant:
-        condition: service_healthy
     networks:
       - shared_net
       - homelab_swarm_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.open-webui.rule=Host(`open-webui.${ROOT_DOMAIN:-example.com}`, `chat.${ROOT_DOMAIN:-example.com}`)"
+      - "traefik.http.routers.open-webui.rule=Host(`open-webui.${ROOT_DOMAIN:-bluewave.work}`, `chat.${ROOT_DOMAIN:-bluewave.work}`)"
       - "traefik.http.routers.open-webui.entrypoints=websecure"
       - "traefik.http.routers.open-webui.tls=true"
       - "traefik.http.routers.open-webui.middlewares=app-fail2ban@file,security-headers@file,compression@file"

@@ -1,0 +1,172 @@
+# ==============================================================================
+# HERMES AGENT MASTER CONFIGURATION (Production Homelab v3.0)
+# Optimized for Academic Teaching (FR), SE&TIC Research (EN), Grants (EN/FR),
+# Calibrated Daughters Tutoring (Eya: EN, Mariem: FR, Sarra: FR, Emna: AR),
+# and Homelab Microservices (Ollama, TEI, Speaches, Mem0, Qdrant, Sandbox)
+# ==============================================================================
+
+model:
+  default: hermes-default
+  provider: custom
+  base_url: ${LITELLM_API_BASE:-http://litellm:4000/v1}
+  api_key: ${LITELLM_API_KEY:-}
+
+providers:
+  custom:
+    base_url: ${LITELLM_API_BASE:-http://litellm:4000/v1}
+    api_key: ${LITELLM_API_KEY:-}
+    models:
+      - hermes-default
+      - hermes-vision
+      - hermes-compression
+      - hermes-web-extract
+      - hermes-skills-hub
+      - hermes-auxiliary
+      - hermes-mcp
+      - hermes-title
+      - hermes-triage-specifier
+      - hermes-kanban
+      - hermes-profile-describer
+      - hermes-curator
+      - hermes-approval
+      - hermes-ocr-and-documents
+      - mistral-codestral-latest-22B
+      - qwen2.5vl:3b
+      - hermes3:8b
+
+agent:
+  max_turns: 500
+  verify_on_stop: true
+  verbose: false
+  reasoning_effort: high
+  personalities:
+    professor: >
+      You are Professor Mohamed Zarka's elite academic co-pilot at ISET Kairouan.
+      Deliver all university teaching materials, lecture notes, lab guides, and evaluations in French.
+      You excel in Computer Science pedagogy (Algorithms & Programming, Big Data, Machine Learning, Agentic AI).
+      You design Bloom-aligned syllabi, crystal-clear French lecture notes, reproducible Docker/Proxmox labs,
+      and balanced evaluations. You strictly follow the Continuous Verification Loop (CVL).
+      For executing code or generating LaTeX documents, always utilize the agent_sandbox MCP tools.
+    researcher: >
+      You are a senior research scientist at SE&TIC Lab (University of Carthage).
+      Deliver all scientific writing, experiment scripts, analysis, and paper drafts strictly in English.
+      You specialize in Robust Speech Recognition, Autism acoustic biomarker detection,
+      Ultrasound rock analysis using ML, and AI in Education.
+      You produce publication-grade IEEE/Springer manuscripts, mathematically rigorous equations,
+      and clean Python/PyTorch code with execution profiling and strict metrics (Accuracy, EER, F1-Score).
+      For all experiment validation and code runs, delegate to the agent_sandbox MCP tools.
+    reviewer2: >
+      You are the notoriously strict 'Reviewer 2' for IEEE Transactions (English).
+      You strip away all conversational fluff, aggressively audit experimental methodology,
+      detect missing baseline comparisons, identify data leakage, and scrutinize statistical significance.
+    grant_writer: >
+      You are a senior International Project Funding Specialist (English & French).
+      Deliver in English for Erasmus+/Horizon Europe, and in French for DAF/AUF.
+      You structure compelling Logical Frameworks (LogFrames), precise Work Packages (WPs),
+      Gantt milestones, and measurable socio-economic impact matrices tailored for Tunisian higher education.
+    socratic_tutor: >
+      You are a warm, patient, and highly engaging pedagogical tutor for Mohamed's four daughters with strict language calibration:
+      - Eya (University Year 2): Speak in English (Advanced CS, algorithms, system architecture).
+      - Mariem (High School Year 2 - Sciences): Speak in French (Math, Physics/Chemistry, SVT).
+      - Sarra (High School Year 1 - Python/Math): Speak in French (Python programming, algebra, geometry).
+      - Emna (Basic School Year 2 / 8ème de base): Speak in Modern Standard Arabic (العربية الفصحى) with engaging, simplified analogies.
+      CRITICAL: You NEVER provide direct answers or complete code immediately.
+      You use Socratic probing questions, relatable Tunisian cultural analogies, and progressive scaffolding.
+    productivity_advisor: >
+      You are an executive meta-agent and cognitive performance coach communicating with Mohamed in English.
+      You analyze Mohamed's workflows, audit time allocation across Teaching, Research, Grants, and Family,
+      detect context-switching friction, summarize research monitoring, and provide proactive
+      productivity optimization recommendations.
+
+# --- Execution Policy ---
+# Code execution is securely delegated to the dedicated Homelab Agent Sandbox MCP Server
+terminal:
+  backend: disabled
+  cwd: /workspace
+
+# --- Web Tools ---
+web:
+  backend: firecrawl
+  search_backend: searxng
+  extract_backend: firecrawl
+  use_gateway: false
+
+browser:
+  inactivity_timeout: 120
+
+tools:
+  web_search:
+    enabled: true
+    provider: searxng
+    base_url: ${SEARXNG_BASE_URL:-http://searxng:8080}
+  firecrawl:
+    enabled: true
+    api_url: ${FIRECRAWL_API_URL:-http://firecrawl-api:3036}
+    api_key: ${FIRECRAWL_API_KEY:-}
+
+# --- Hybrid Memory Architecture ---
+# 1. Background Automatic Conversational Memory via Mem0 REST API
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 4000
+  user_char_limit: 3000
+  provider: mem0
+  api_url: ${MEM0_API_URL:-http://mem0-api:8000}
+  host: ${MEM0_API_URL:-http://mem0-api:8000}
+  api_key: ${MEM0_API_KEY:-dummy-local-key}
+  nudge_interval: 10
+  flush_min_turns: 6
+
+# 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
+mcp_servers:
+  knowledge:
+    url: ${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/sse}
+  agent_sandbox:
+    url: ${SANDBOX_MCP_URL:-http://agent-sandbox:8088/sse}
+    headers:
+      Authorization: "Bearer ${SANDBOX_API_KEY:-}"
+
+# --- Speech-to-Text (Faster-Whisper via Speaches) ---
+stt:
+  enabled: true
+  language: en
+  openai:
+    base_url: ${SPEACHES_BASE_URL:-http://speaches:8000/v1}
+    api_key: ${SPEACHES_API_KEY:-}
+    model: Systran/faster-whisper-large-v3
+
+# --- Text Embeddings (BAAI/bge-m3 via TEI) ---
+embeddings:
+  provider: custom
+  model: BAAI/bge-m3
+  base_url: ${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
+  api_key: ${TEI_API_KEY:-}
+
+# --- Dashboard & Gateway ---
+webui:
+  dashboard:
+    enabled: true
+    url: https://agents.${ROOT_DOMAIN:-bluewave.work}
+
+platforms:
+  api_server:
+    enabled: true
+    port: 8642
+    host: 0.0.0.0
+
+platform_toolsets:
+  default:
+    - file
+    - web
+    - browser
+    - vision
+    - memory
+    - session_search
+    - delegation
+    - cronjob
+    - skills
+    - clarify
+    - todo
+    - kanban
+    - image_gen

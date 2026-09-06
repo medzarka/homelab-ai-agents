@@ -12,68 +12,124 @@
 
 # 🤖 Homelab AI Agents Stack
 
-A complete self-hosted AI Agent runtime, long-term conversational memory, vector database, and chat interface powered by:
-- **Nous Research Hermes Agent:** Autonomous AI agent gateway, tools, and execution engine.
-- **Open-WebUI:** Full-featured conversational UI with multi-modal vision, SearXNG web search, and Docling RAG.
-- **Qdrant:** High-performance vector database for document embeddings and semantic recall.
-- **Mem0 Conversational Memory:** Hybrid vector (`PostgreSQL + pgvector`) and graph (`Neo4j`) long-term memory engine.
+A dedicated, production-hardened AI Agent runtime and conversational interface stack consisting exclusively of:
+- **Nous Research Hermes Agent:** Autonomous AI agent gateway, multi-personality co-pilot (Academic, Research, Grants, Tutoring), and tool execution engine.
+- **Open-WebUI:** Full-featured conversational UI with multi-modal vision, SearXNG web search, Kokoro TTS / Faster-Whisper STT, and TEI RAG.
+- **Workspace Knowledge Scanner:** Automated incremental walker that scans `/workspace`, computes SHA-256 hashes, and streams documents to Qdrant via Knowledge MCP.
 
-Optimized for **ARM64 and AMD64** Linux/Docker hosts.
+All heavy backing services (Ollama, TEI Embeddings/Reranker, Speaches, Mem0, Neo4j, Qdrant, Knowledge MCP, Agent Sandbox MCP) are decoupled and consumed as microservices over the sovereign overlay network (`homelab_swarm_net`).
+
+Multi-Arch Ready: Built and tested for both **AMD64** (Xeon/EPYC/Core) and **ARM64** (Ampere Altra / RK3588).
 
 ---
 
-## 🏛️ Architecture Overview
+## 🏛️ Architecture & Service Integration
 
 ```mermaid
 graph TD
-    User([User / Browser]) -->|Port 3030| WebUI[Open-WebUI Chat Interface]
-    User -->|Port 8642 / 9119| Hermes[Hermes Agent Gateway & Dashboard]
+    User([User / Browser]) -->|https://chat.bluewave.work| Traefik[Traefik v3 Gateway]
+    User -->|https://agents.bluewave.work| Traefik
     
-    WebUI -->|Chat Completions| LiteLLM[LiteLLM Proxy / AI Models]
-    WebUI -->|Vector Search / RAG| Qdrant[(Qdrant Vector DB)]
-    WebUI -->|Web Search| SearXNG[SearXNG Search Engine]
-    WebUI -->|Doc Parsing| Docling[Docling Document Converter]
+    Traefik -->|Port 8080| WebUI[Open-WebUI]
+    Traefik -->|Port 9119| Hermes[Hermes Agent Gateway & Dashboard]
     
-    Hermes -->|LiteLLM API| LiteLLM
-    Hermes -->|Semantic Recall| Qdrant
-    Hermes -->|Memory REST| Mem0API[Mem0 API Server]
-    Mem0API -->|Vector Store| PGVector[(PostgreSQL + pgvector)]
-    Mem0API -->|Knowledge Graph| Neo4j[(Neo4j Graph Database)]
+    subgraph "homelab-ai-agents"
+        Hermes
+        WebUI
+        Scanner[Workspace Scanner Daemon]
+    end
+    
+    subgraph "homelab-ai-tools (zap-srv)"
+        Ollama[Ollama LLM/VLM]
+        TEIEmbed[TEI Embeddings bge-m3]
+        TEIRerank[TEI Reranker v2-m3]
+        Speaches[Speaches Whisper STT & Kokoro TTS]
+        SearXNG[SearXNG Web Search]
+        Firecrawl[Firecrawl Web Scraper]
+    end
+    
+    subgraph "homelab-ai-knowledge (oci01-flex)"
+        Mem0[Mem0 REST API]
+        Qdrant[(Qdrant Vector DB)]
+        Neo4j[(Neo4j Graph DB)]
+        KnowledgeMCP[Knowledge MCP Server]
+    end
+    
+    subgraph "homelab-ai-sandbox (oci01-flex)"
+        SandboxMCP[Agent Sandbox MCP Server]
+    end
+    
+    Hermes -->|Episodic Memory| Mem0
+    Hermes -->|Knowledge Tools (SSE)| KnowledgeMCP
+    Hermes -->|Sandboxed Execution (SSE)| SandboxMCP
+    Hermes -->|Search & Scrape| SearXNG
+    Hermes -->|Speech Input| Speaches
+    
+    Scanner -->|Index /workspace| KnowledgeMCP
+    KnowledgeMCP -->|Vectors| Qdrant
+    
+    WebUI -->|Chat LLMs| Ollama
+    WebUI -->|Embeddings & Rerank| TEIEmbed
+    WebUI -->|RAG Vectors| Qdrant
+    WebUI -->|Audio Voice| Speaches
+    WebUI -->|Web Search| SearXNG
 ```
+
+---
+
+## 🧠 Memory & Execution Design
+
+### 1. Hybrid Memory Strategy
+Hermes Agent utilizes a dual-tier memory system:
+1. **Background Episodic Memory (Mem0 REST)**: Hermes natively flushes conversational context, personal facts, and preferences to `http://mem0-api:8000`. Memory recall is completely automated and zero-overhead.
+2. **Semantic Knowledge & Graph RAG (Knowledge MCP)**: Hermes queries `http://knowledge-mcp:8095/sse` via explicit tool calls (`search_knowledge`, `query_knowledge_graph`) for deep factual search across course materials, research drafts, and homelab documentation.
+
+### 2. Sandboxed Code Execution (Sandbox MCP)
+Hermes Agent has its local terminal backend **disabled** for security (`terminal.backend: disabled`). All code compilation and execution requests (Bash, Python, C/C++, Java, Rust, LaTeX) are delegated to the dedicated in-memory sandbox (`http://agent-sandbox:8088/sse`).
+
+### 3. Automated `/workspace` Knowledge Scanner
+The `workspace-scanner` service runs an incremental file walker (`sync_workspace.py`):
+- Walks `/workspace` and computes file SHA-256 hashes.
+- Skips unchanged files in `<1ms` via `.knowledge_cache.json`.
+- Streams new or modified documents (PDFs, Markdown, source code, images, audio) directly to Knowledge MCP with Base64 payload support for seamless cross-node ingestion.
+- Automatically purges deleted files from Qdrant.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone & Configure Environment
+### 1. Configure Environment
 ```bash
 cp .env.example .env
 nano .env
 ```
-Generate strong random keys:
+
+### 2. Validate Compose Configuration
 ```bash
-openssl rand -hex 16
+docker compose config
 ```
 
-### 2. Deploy the Stack
+### 3. Launch the Stack
 ```bash
 docker compose up -d
 ```
-The `init-volumes` container will automatically initialize the host directory structure and set proper UID/GID permissions for PostgreSQL (`999:999`), Neo4j (`7474:7474`), and Open-WebUI.
+
+### 4. Monitor Logs
+```bash
+# Follow Hermes Agent logs
+docker logs -f hermes-agent
+
+# Follow Open-WebUI logs
+docker logs -f open-webui
+
+# Follow Workspace Knowledge Scanner
+docker logs -f hermes_workspace_scanner
+```
 
 ---
 
-## ⚙️ Hardware & Performance Tuning (32GB RAM Node)
+## 🔒 Security & Traefik Routing
 
-- **Open-WebUI & LiteLLM:** Configured with 4 parallel worker threads to leverage the RK3588's 8 CPU cores.
-- **PostgreSQL (`pgvector`):** Shared memory (`shm_size`) is set to `512mb` for fast vector similarity searches.
-- **Neo4j Graph Database:** Initial heap is allocated to `1GB`, max heap to `2GB`, and page cache to `1GB` for high-throughput entity extraction and graph relationship queries.
-- **Log Rotation:** All services have JSON log rotation enabled (`10m`, max 3 files) to prevent storage exhaustion.
-
----
-
-## 🔒 Security Best Practices
-
-- Ensure `.env` is **never** committed to version control (`.gitignore` protects this by default).
-- The `shared_net` Docker network attaches to your reverse proxy (Caddy / Traefik / Dockhand) with `external: true`.
-- Change default passwords for `MEM0_PG_PASSWORD`, `NEO4J_PASSWORD`, `WEBUI_SECRET_KEY`, and `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD`.
+- **Hermes Agent Dashboard:** Secured behind Authelia SSO (`https://agents.bluewave.work` / `https://hermes.bluewave.work`).
+- **Open-WebUI:** Secured with Fail2ban and security headers (`https://chat.bluewave.work` / `https://open-webui.bluewave.work`).
+- **Internal Swarm Overlay:** Communication with Ollama, TEI, Speaches, Mem0, Qdrant, and MCP servers traverses the encrypted Tailscale Swarm overlay network (`homelab_swarm_net`).
