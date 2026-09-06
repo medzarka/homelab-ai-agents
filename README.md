@@ -30,8 +30,8 @@ graph TD
     User([User / Browser]) -->|https://chat.bluewave.work| Traefik[Traefik v3 Gateway]
     User -->|https://agents.bluewave.work| Traefik
     
-    Traefik -->|Port 8080| WebUI[Open-WebUI]
-    Traefik -->|Port 9119| Hermes[Hermes Agent Gateway & Dashboard]
+    Traefik -->|homelab_swarm_net:8080| WebUI[Open-WebUI]
+    Traefik -->|homelab_swarm_net:9119| Hermes[Hermes Agent Gateway & Dashboard]
     
     subgraph "homelab-ai-agents"
         Hermes
@@ -130,6 +130,7 @@ docker logs -f hermes_workspace_scanner
 
 ## 🔒 Security & Traefik Routing
 
+- **Zero Exposed Host Ports:** Neither Hermes Agent nor Open-WebUI publish host ports (`ports:` omitted). They are accessible exclusively via Traefik through the encrypted Docker Swarm overlay network (`homelab_swarm_net`).
 - **Hermes Agent Dashboard:** Secured behind Authelia SSO (`https://agents.bluewave.work` / `https://hermes.bluewave.work`).
 - **Open-WebUI:** Secured with Fail2ban and security headers (`https://chat.bluewave.work` / `https://open-webui.bluewave.work`).
 - **Internal Swarm Overlay:** Communication with Ollama, TEI, Speaches, Mem0, Qdrant, and MCP servers traverses the encrypted Tailscale Swarm overlay network (`homelab_swarm_net`).

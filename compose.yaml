@@ -37,10 +37,6 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
-    ports:
-      - "${HERMES_GATEWAY_PORT:-8642}:8642"   # Agent Gateway API
-      - "${HERMES_DASHBOARD_PORT:-9119}:9119" # Agent Dashboard
-      - "${HERMES_BRIDGE_PORT:-3000}:3000"    # Bridge API
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes:/opt/data
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/workspace
@@ -168,8 +164,6 @@ services:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     restart: unless-stopped
-    ports:
-      - "${OPEN_WEBUI_PORT:-3030}:8080"
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}/open-webui:/app/backend/data
     environment:
