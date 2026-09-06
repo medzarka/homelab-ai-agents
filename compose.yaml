@@ -88,7 +88,7 @@ services:
       - MEM0_API_KEY=${MEM0_API_KEY:-dummy-local-key}
 
       # Model Context Protocol (MCP) Integration
-      - KNOWLEDGE_MCP_URL=${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/sse}
+      - KNOWLEDGE_MCP_URL=${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/mcp/sse}
       - SANDBOX_MCP_URL=${SANDBOX_MCP_URL:-http://agent-sandbox:8088/sse}
       - SANDBOX_API_KEY=${SANDBOX_API_KEY:-}
 

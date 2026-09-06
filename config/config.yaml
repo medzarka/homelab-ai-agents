@@ -121,7 +121,7 @@ memory:
 # 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
 mcp_servers:
   knowledge:
-    url: http://knowledge-mcp:8095/sse
+    url: http://knowledge-mcp:8095/mcp/sse
   agent_sandbox:
     url: http://agent-sandbox:8088/sse
     headers:
