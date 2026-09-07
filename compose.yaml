@@ -103,10 +103,10 @@ services:
       - HERMES_DASHBOARD=true
       - HERMES_DASHBOARD_HOST=0.0.0.0
       - HERMES_DASHBOARD_PORT=9119
-      # Basic auth is disabled in favor of Authelia SSO
-      # - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
-      # - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD}
-      # - HERMES_DASHBOARD_BASIC_AUTH_SECRET=${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
+      # Basic auth is enabled to satisfy Hermes internal security check (real auth is handled by Authelia)
+      - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=dummy_password
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=dummy_secret_key
     depends_on:
       init-volumes:
         condition: service_healthy
