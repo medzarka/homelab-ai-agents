@@ -134,6 +134,8 @@ services:
     image: python:3.11-alpine
     container_name: hermes_workspace_scanner
     restart: unless-stopped
+    init: true
+    tty: true
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/workspace
       - ./scripts/sync_workspace.py:/usr/local/bin/sync_workspace.py:ro
