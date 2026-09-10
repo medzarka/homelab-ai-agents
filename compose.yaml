@@ -63,14 +63,10 @@ services:
 
       # LiteLLM Proxy / Model Gateway
       - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}
-      - LITELLM_API_KEY=${LITELLM_MASTER_KEY}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-${LITELLM_API_BASE:-http://litellm:4000/v1}}
+      - LITELLM_API_KEY=${LITELLM_API_KEY:-${LITELLM_MASTER_KEY}}
       - LLM_MODEL=${LLM_MODEL:-hermes-default}
       - VLM_MODEL=${VLM_MODEL:-hermes-vision}
-
-      # Text Embeddings via TEI
-      - EMBEDDINGS_API_BASE=${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
-      - TEI_API_KEY=${TEI_API_KEY:-}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
 
       # Web Search & Extraction Tools
       - WEB_SEARCH_BACKEND=searxng
@@ -89,12 +85,9 @@ services:
 
       # Model Context Protocol (MCP) Integration
       - KNOWLEDGE_MCP_URL=${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/mcp/sse}
-      - SANDBOX_MCP_URL=${SANDBOX_MCP_URL:-http://agent-sandbox:8088/sse}
+      - KNOWLEDGE_MCP_API_KEY=${KNOWLEDGE_MCP_API_KEY:-}
+      - SANDBOX_MCP_URL=${SANDBOX_MCP_URL:-http://agent-sandbox:8088/mcp/sse}
       - SANDBOX_API_KEY=${SANDBOX_API_KEY:-}
-
-      # Speech-To-Text via Speaches (Systran/faster-whisper-large-v3)
-      - SPEACHES_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
-      - SPEACHES_API_KEY=${SPEACHES_API_KEY:-}
 
       # Git Integration
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
@@ -105,8 +98,29 @@ services:
       - HERMES_DASHBOARD_PORT=9119
       # Basic auth is enabled to satisfy Hermes internal security check (real auth is handled by Authelia)
       - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin
-      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=dummy_password
-      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=dummy_secret_key
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=admin
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET=admin
+
+      # Ollama
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-hermes3:8b}
+      - OLLAMA_VLM_MODEL=${OLLAMA_VLM_MODEL:-qwen2.5vl:3b}
+
+      # Speaches (stt and tts)
+      - SPEACHES_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
+      - SPEACHES_API_KEY=${SPEACHES_API_KEY:-}
+      - WHISPER_MODEL=${WHISPER_MODEL:-Systran/faster-whisper-large-v3}
+      - KOKORO_MODEL=${KOKORO_MODEL:-speaches-ai/Kokoro-82M-v1.0-ONNX}
+      - KOKORO_VOICE=${KOKORO_VOICE:-af_heart}
+      - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-en}
+      
+
+      # Embedding (tei)
+      - EMBEDDING_API_BASE=${EMBEDDING_API_BASE:-http://embeddings:80/v1}
+      - TEI_API_KEY=${TEI_API_KEY:-}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+
     depends_on:
       init-volumes:
         condition: service_healthy
@@ -142,6 +156,7 @@ services:
     environment:
       - WORKSPACE_DIR=/workspace
       - KNOWLEDGE_MCP_HTTP_URL=${KNOWLEDGE_MCP_HTTP_URL:-http://knowledge-mcp:8095}
+      - KNOWLEDGE_MCP_API_KEY=${KNOWLEDGE_MCP_API_KEY:-}
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-workspace}
       - SCAN_INTERVAL_SECONDS=${SCAN_INTERVAL_SECONDS:-900}
     command:

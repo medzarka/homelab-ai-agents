@@ -8,12 +8,12 @@
 model:
   default: hermes-default
   provider: custom
-  base_url: http://litellm:4000/v1
+  base_url: ${LITELLM_BASE_URL}
   api_key: ${LITELLM_API_KEY}
 
 providers:
   custom:
-    base_url: http://litellm:4000/v1
+    base_url: ${LITELLM_BASE_URL}
     api_key: ${LITELLM_API_KEY}
     models:
       - hermes-default
@@ -30,9 +30,14 @@ providers:
       - hermes-curator
       - hermes-approval
       - hermes-ocr-and-documents
-      - mistral-codestral-latest-22B
       - qwen2.5vl:3b
       - hermes3:8b
+  ollama:
+    base_url: ${OLLAMA_BASE_URL}
+    api_key: ${OLLAMA_API_KEY}
+    models:
+      - ${OLLAMA_MODEL}
+      - ${OLLAMA_VLM_MODEL}
 
 agent:
   max_turns: 500
@@ -98,10 +103,10 @@ tools:
   web_search:
     enabled: true
     provider: searxng
-    base_url: http://searxng:8080
+    base_url: ${SEARXNG_BASE_URL}
   firecrawl:
     enabled: true
-    api_url: http://firecrawl-api:3036
+    api_url: ${FIRECRAWL_API_URL}
     api_key: ${FIRECRAWL_API_KEY}
 
 # --- Hybrid Memory Architecture ---
@@ -112,8 +117,8 @@ memory:
   memory_char_limit: 4000
   user_char_limit: 3000
   provider: mem0
-  api_url: http://mem0-api:8000
-  host: http://mem0-api:8000
+  api_url: ${MEM0_API_URL}
+  host: ${MEM0_API_URL}
   api_key: ${MEM0_API_KEY}
   nudge_interval: 10
   flush_min_turns: 6
@@ -121,27 +126,46 @@ memory:
 # 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
 mcp_servers:
   knowledge:
-    url: http://knowledge-mcp:8095/mcp/sse
+    url: http://knowledge-mcp:8095/mcp/sse?api_key=${KNOWLEDGE_MCP_API_KEY}
+    headers:
+      Authorization: "Bearer ${KNOWLEDGE_MCP_API_KEY}"
   agent_sandbox:
-    url: http://agent-sandbox:8088/sse
+    url: http://agent-sandbox:8088/mcp/sse?api_key=${SANDBOX_API_KEY}
     headers:
       Authorization: "Bearer ${SANDBOX_API_KEY}"
 
 # --- Speech-to-Text (Faster-Whisper via Speaches) ---
 stt:
   enabled: true
-  language: en
+  provider: openai
+  language: ${WHISPER_LANGUAGE}
+  echo_transcripts: true
   openai:
-    base_url: http://speaches:8000/v1
-    api_key: ""
-    model: Systran/faster-whisper-large-v3
+    base_url: ${SPEACHES_BASE_URL}
+    api_key: "${SPEACHES_API_KEY}"
+    model: ${WHISPER_MODEL}
+
+# --- Text-to-Speech (Kokoro-82M via Speaches) ---
+tts:
+  provider: openai
+  speed: 1.0
+  openai:
+    base_url: ${SPEACHES_BASE_URL}
+    api_key: ${SPEACHES_API_KEY}
+    model: ${KOKORO_MODEL}
+    voice: ${KOKORO_VOICE}
+
+# --- Voice Mode ---
+voice:
+  auto_tts: true
+  record_key: "ctrl+b"
 
 # --- Text Embeddings (BAAI/bge-m3 via TEI) ---
 embeddings:
   provider: custom
-  model: BAAI/bge-m3
-  base_url: http://embeddings:80/v1
-  api_key: ""
+  model: ${EMBEDDING_MODEL}
+  base_url: ${EMBEDDING_API_BASE}
+  api_key: ${TEI_API_KEY}
 
 # --- Dashboard & Gateway ---
 webui:

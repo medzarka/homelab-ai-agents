@@ -29,7 +29,8 @@ def sync_workspace(
     server_url: str = "http://knowledge-mcp:8095",
     collection: str = "workspace",
     cache_file: str = ".knowledge_cache.json",
-    extensions: List[str] = None
+    extensions: List[str] = None,
+    api_key: str = None
 ):
     base_path = Path(target_dir).resolve()
     if not base_path.exists():
@@ -49,6 +50,10 @@ def sync_workspace(
         ".sh", ".c", ".cpp", ".rs", ".java", ".docx", ".xlsx",
         ".png", ".jpg", ".jpeg", ".webp", ".mp3", ".wav", ".m4a"
     ])
+
+    req_headers = {"Content-Type": "application/json"}
+    if api_key:
+        req_headers["Authorization"] = f"Bearer {api_key}"
 
     print("=" * 70)
     print(f"🚀 [Knowledge Walker] Scanning '{base_path}' -> Collection: '{collection}'")
@@ -93,7 +98,7 @@ def sync_workspace(
             req = urllib.request.Request(
                 f"{server_url}/index-file",
                 data=payload,
-                headers={"Content-Type": "application/json"}
+                headers=req_headers
             )
             with urllib.request.urlopen(req, timeout=300) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
@@ -126,7 +131,7 @@ def sync_workspace(
             req = urllib.request.Request(
                 f"{server_url}/delete-file",
                 data=payload,
-                headers={"Content-Type": "application/json"}
+                headers=req_headers
             )
             urllib.request.urlopen(req, timeout=30)
             del state[dp]
@@ -147,4 +152,5 @@ if __name__ == "__main__":
     target = os.environ.get("WORKSPACE_DIR", "/workspace")
     server = os.environ.get("KNOWLEDGE_MCP_HTTP_URL", "http://knowledge-mcp:8095")
     coll = os.environ.get("QDRANT_COLLECTION", "workspace")
-    sync_workspace(target_dir=target, server_url=server, collection=coll)
+    key = os.environ.get("KNOWLEDGE_MCP_API_KEY", "")
+    sync_workspace(target_dir=target, server_url=server, collection=coll, api_key=key)
