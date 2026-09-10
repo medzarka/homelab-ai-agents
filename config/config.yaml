@@ -126,11 +126,11 @@ memory:
 # 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
 mcp_servers:
   knowledge:
-    url: http://knowledge-mcp:8095/mcp/sse?api_key=${KNOWLEDGE_MCP_API_KEY}
+    url: http://${KNOWLEDGE_MCP_URL}?api_key=${KNOWLEDGE_MCP_API_KEY}
     headers:
       Authorization: "Bearer ${KNOWLEDGE_MCP_API_KEY}"
   agent_sandbox:
-    url: http://agent-sandbox:8088/mcp/sse?api_key=${SANDBOX_API_KEY}
+    url: http://${SANDBOX_MCP_URL}?api_key=${SANDBOX_API_KEY}
     headers:
       Authorization: "Bearer ${SANDBOX_API_KEY}"
 
@@ -168,10 +168,15 @@ embeddings:
   api_key: ${TEI_API_KEY}
 
 # --- Dashboard & Gateway ---
-webui:
-  dashboard:
-    enabled: true
-    url: https://hermes.bluewave.work
+dashboard:
+  enabled: true
+  public_url: ${HERMES_DASHBOARD_PUBLIC_URL}
+  theme: default
+  basic_auth:
+    username: "${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}"
+    password: "${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-admin}"
+    password_hash: "${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH:-scrypt$16384$8$1$jW5ZDh0n6g6lmX3PvrYdLA==$XVsZNrzf5M9Q8q4fVNtN2ZJWRDzzTceQk6yZdcsEfVs=}"
+    secret: "${HERMES_DASHBOARD_BASIC_AUTH_SECRET:-homelab-hermes-secret-key-32bytes-secure}"
 
 platforms:
   api_server:
