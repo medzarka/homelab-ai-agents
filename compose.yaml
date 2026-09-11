@@ -24,6 +24,7 @@ services:
         echo ">>> [Init] Initializing Hermes Agent & Open-WebUI storage directories..."
         mkdir -p /data/workspace/hermes/workspace /data/workspace/hermes/output
         mkdir -p /data/open-webui
+        mkdir -p /data/filebrowser/database /data/filebrowser/config
 
         if [ ! -s /data/workspace/hermes/config.yaml ]; then
           echo ">>> [Init] Seeding Hermes config.yaml from repository..."
@@ -31,8 +32,8 @@ services:
         fi
 
         echo ">>> [Init] Setting volume ownership and permissions..."
-        chmod -R 775 /data/workspace /data/open-webui
-        chown -R ${HERMES_UID:-1000}:${HERMES_GID:-1000} /data/workspace/hermes
+        chmod -R 775 /data/workspace /data/open-webui /data/filebrowser
+        chown -R ${HERMES_UID:-1000}:${HERMES_GID:-1000} /data/workspace/hermes /data/filebrowser
         echo ">>> [Init] Storage volumes initialized successfully! Guard active."
         sleep infinity
     healthcheck:
@@ -150,6 +151,50 @@ services:
       - "traefik.http.routers.hermes.tls=true"
       - "traefik.http.routers.hermes.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file"
       - "traefik.http.services.hermes.loadbalancer.server.port=9119"
+      - "traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # WORKSPACE FILE MANAGER (FileBrowser)
+  # Drag-and-drop upload/download for /workspace & /output
+  # ========================================================
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: hermes_filebrowser
+    restart: unless-stopped
+    user: "${HERMES_UID:-1000}:${HERMES_GID:-1000}"
+    volumes:
+      - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/srv/workspace:rw
+      - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/output:/srv/output:rw
+      - ${DATA_DIR:-/srv/data/ai-agents}/filebrowser/database:/database:rw
+      - ${DATA_DIR:-/srv/data/ai-agents}/filebrowser/config:/config:rw
+    command:
+      - -a
+      - 0.0.0.0
+      - -p
+      - "8080"
+      - -r
+      - /srv
+      - -d
+      - /database/filebrowser.db
+      - --noauth
+    depends_on:
+      init-volumes:
+        condition: service_healthy
+    networks:
+      - shared_net
+      - homelab_swarm_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.filebrowser.rule=Host(`files-agents.${ROOT_DOMAIN:-bluewave.work}`) || Host(`workspace.${ROOT_DOMAIN:-bluewave.work}`)"
+      - "traefik.http.routers.filebrowser.entrypoints=websecure"
+      - "traefik.http.routers.filebrowser.tls=true"
+      - "traefik.http.routers.filebrowser.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file,compression@file"
+      - "traefik.http.services.filebrowser.loadbalancer.server.port=8080"
       - "traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}"
     logging:
       driver: "json-file"
