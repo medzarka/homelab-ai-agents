@@ -59,11 +59,13 @@ def _check_sandbox_available() -> bool:
     return True
 
 
-def sandbox_execute_handler(args: Dict[str, Any], **kwargs) -> str:
-    language = (args.get("language") or "").strip().lower()
-    code = args.get("code") or ""
-    output_dir = (args.get("output_dir") or "/workspace").strip()
-    session_id = args.get("session_id")
+def sandbox_execute_handler(args: Optional[Dict[str, Any]] = None, **kwargs) -> str:
+    params = dict(args) if isinstance(args, dict) else {}
+    params.update(kwargs)
+    language = (params.get("language") or "").strip().lower()
+    code = params.get("code") or ""
+    output_dir = (params.get("output_dir") or "/workspace").strip()
+    session_id = params.get("session_id")
 
     # Auto-detect language if code is clearly LaTeX source
     stripped_code = code.strip()
@@ -225,10 +227,12 @@ def _resolve_file_path(file_path: str) -> Path | None:
     return None
 
 
-def send_whatsapp_handler(args: Dict[str, Any], **kwargs) -> str:
-    message = (args.get("message") or "").strip()
-    raw_file_path = (args.get("file_path") or "").strip()
-    recipient = (args.get("recipient") or "").strip()
+def send_whatsapp_handler(args: Optional[Dict[str, Any]] = None, **kwargs) -> str:
+    params = dict(args) if isinstance(args, dict) else {}
+    params.update(kwargs)
+    message = (params.get("message") or "").strip()
+    raw_file_path = (params.get("file_path") or "").strip()
+    recipient = (params.get("recipient") or "").strip()
 
     if not message and not raw_file_path:
         return "Error: At least one of 'message' or 'file_path' must be provided."
