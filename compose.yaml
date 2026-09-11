@@ -50,6 +50,8 @@ services:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/output:/output
       - ./config/config.yaml:/opt/data/config.yaml:ro
       - ./scripts:/workspace/scripts:ro
+      - ./scripts/patches/tts_tool_openai.py:/opt/hermes/tools/tts_tool_openai.py:ro
+      - ./scripts/patches/transcription_cloud.py:/opt/hermes/tools/transcription_cloud.py:ro
     environment:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - MEDIA_WORKSPACE_HOST_ROOT=${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes
@@ -60,6 +62,7 @@ services:
       - HERMES_PROFILE=default
       - HERMES_GATEWAY_NO_SUPERVISE=1
       - HERMES_WRITE_SAFE_ROOT=/workspace:/tmp:/opt/data
+      - HERMES_STT_TIMEOUT=60
 
       # LiteLLM Proxy / Model Gateway
       - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}

@@ -125,10 +125,12 @@ memory:
 mcp_servers:
   knowledge:
     url: ${KNOWLEDGE_MCP_URL}?api_key=${KNOWLEDGE_MCP_API_KEY}
+    transport: sse
     headers:
       Authorization: "Bearer ${KNOWLEDGE_MCP_API_KEY}"
   agent_sandbox:
     url: ${SANDBOX_MCP_URL}?api_key=${SANDBOX_API_KEY}
+    transport: sse
     headers:
       Authorization: "Bearer ${SANDBOX_API_KEY}"
 
