@@ -6,7 +6,7 @@
 # ==============================================================================
 
 model:
-  default: ${LLM_MODEL:-local_hermes3:8b}
+  default: hermes-default
   provider: custom
   base_url: ${LITELLM_BASE_URL}
   api_key: ${LITELLM_API_KEY}
@@ -30,10 +30,6 @@ providers:
       - hermes-curator
       - hermes-approval
       - hermes-ocr-and-documents
-      - qwen2.5vl:3b
-      - hermes3:8b
-      - local_hermes3:8b
-      - local_qwen2.5vl:3b
   ollama:
     base_url: ${OLLAMA_BASE_URL}
     api_key: ${OLLAMA_API_KEY}
