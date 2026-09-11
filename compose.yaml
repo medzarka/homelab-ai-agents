@@ -59,7 +59,7 @@ services:
       - PIP_USER=1
       - HERMES_PROFILE=default
       - HERMES_GATEWAY_NO_SUPERVISE=1
-      - HERMES_WRITE_SAFE_ROOT=/workspace
+      - HERMES_WRITE_SAFE_ROOT=/workspace:/tmp:/opt/data
 
       # LiteLLM Proxy / Model Gateway
       - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}
@@ -111,10 +111,10 @@ services:
       # Speaches (stt and tts)
       - SPEACHES_BASE_URL=${SPEACHES_BASE_URL:-http://speaches:8000/v1}
       - SPEACHES_API_KEY=${SPEACHES_API_KEY:-}
-      - WHISPER_MODEL=${WHISPER_MODEL:-Systran/faster-whisper-large-v3}
+      - WHISPER_MODEL=${WHISPER_MODEL:-Systran/faster-whisper-medium}
       - KOKORO_MODEL=${KOKORO_MODEL:-speaches-ai/Kokoro-82M-v1.0-ONNX}
       - KOKORO_VOICE=${KOKORO_VOICE:-af_heart}
-      - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-en}
+      - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-}
       
 
       # Embedding (tei)
