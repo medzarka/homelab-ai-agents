@@ -17,6 +17,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}:/data
+      - ./config/config.yaml:/config/config.yaml:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -24,8 +25,14 @@ services:
         mkdir -p /data/workspace/hermes/workspace /data/workspace/hermes/output
         mkdir -p /data/open-webui
 
+        if [ ! -s /data/workspace/hermes/config.yaml ]; then
+          echo ">>> [Init] Seeding Hermes config.yaml from repository..."
+          cp /config/config.yaml /data/workspace/hermes/config.yaml
+        fi
+
         echo ">>> [Init] Setting volume ownership and permissions..."
         chmod -R 775 /data/workspace /data/open-webui
+        chown -R ${HERMES_UID:-1000}:${HERMES_GID:-1000} /data/workspace/hermes
         echo ">>> [Init] Storage volumes initialized successfully! Guard active."
         sleep infinity
     healthcheck:
@@ -48,7 +55,6 @@ services:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes:/opt/data
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/workspace
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/output:/output
-      - ./config/config.yaml:/opt/data/config.yaml:ro
       - ./scripts:/workspace/scripts:ro
       - ./scripts/patches/tts_tool_openai.py:/opt/hermes/tools/tts_tool_openai.py:ro
       - ./scripts/patches/transcription_cloud.py:/opt/hermes/tools/transcription_cloud.py:ro
