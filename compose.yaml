@@ -64,6 +64,11 @@ services:
       - HERMES_WRITE_SAFE_ROOT=/workspace:/tmp:/opt/data
       - HERMES_STT_TIMEOUT=60
 
+      # Messaging Platforms
+      - WHATSAPP_ENABLED=${WHATSAPP_ENABLED:-true}
+      - WHATSAPP_MODE=${WHATSAPP_MODE:-self-chat}
+      - WHATSAPP_ALLOWED_USERS=${WHATSAPP_ALLOWED_USERS:-}
+
       # LiteLLM Proxy / Model Gateway
       - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}
       - LITELLM_BASE_URL=${LITELLM_BASE_URL:-${LITELLM_API_BASE:-http://litellm:4000/v1}}

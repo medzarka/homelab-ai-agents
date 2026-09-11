@@ -183,6 +183,12 @@ platforms:
     enabled: true
     port: 8642
     host: 0.0.0.0
+  whatsapp:
+    enabled: true
+
+whatsapp:
+  enabled: true
+  dm_policy: self-chat
 
 platform_toolsets:
   default:
