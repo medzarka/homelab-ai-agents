@@ -65,8 +65,8 @@ services:
       - LITELLM_API_BASE=${LITELLM_API_BASE:-http://litellm:4000/v1}
       - LITELLM_BASE_URL=${LITELLM_BASE_URL:-${LITELLM_API_BASE:-http://litellm:4000/v1}}
       - LITELLM_API_KEY=${LITELLM_API_KEY:-${LITELLM_MASTER_KEY}}
-      - LLM_MODEL=${LLM_MODEL:-hermes-default}
-      - VLM_MODEL=${VLM_MODEL:-hermes-vision}
+      - LLM_MODEL=${LLM_MODEL:-local_hermes3:8b}
+      - VLM_MODEL=${VLM_MODEL:-local_qwen2.5vl:3b}
 
       # Web Search & Extraction Tools
       - WEB_SEARCH_BACKEND=searxng
@@ -96,6 +96,7 @@ services:
       - HERMES_DASHBOARD=true
       - HERMES_DASHBOARD_HOST=0.0.0.0
       - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_PUBLIC_URL=${HERMES_DASHBOARD_PUBLIC_URL:-https://hermes.${ROOT_DOMAIN:-bluewave.work}}
       # Basic auth is enabled to satisfy Hermes internal security check (real auth is handled by Authelia)
       - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin
       - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=admin
@@ -255,7 +256,7 @@ services:
       - "traefik.http.routers.open-webui.rule=Host(`open-webui.${ROOT_DOMAIN:-bluewave.work}`) || Host(`chat.${ROOT_DOMAIN:-bluewave.work}`)"
       - "traefik.http.routers.open-webui.entrypoints=websecure"
       - "traefik.http.routers.open-webui.tls=true"
-      - "traefik.http.routers.open-webui.middlewares=app-fail2ban@file,security-headers@file,compression@file"
+      - "traefik.http.routers.open-webui.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file,compression@file"
       - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
       - "traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}"
     logging:

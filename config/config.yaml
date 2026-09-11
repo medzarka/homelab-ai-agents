@@ -6,7 +6,7 @@
 # ==============================================================================
 
 model:
-  default: hermes-default
+  default: ${LLM_MODEL:-local_hermes3:8b}
   provider: custom
   base_url: ${LITELLM_BASE_URL}
   api_key: ${LITELLM_API_KEY}
@@ -32,6 +32,8 @@ providers:
       - hermes-ocr-and-documents
       - qwen2.5vl:3b
       - hermes3:8b
+      - local_hermes3:8b
+      - local_qwen2.5vl:3b
   ollama:
     base_url: ${OLLAMA_BASE_URL}
     api_key: ${OLLAMA_API_KEY}
@@ -126,11 +128,11 @@ memory:
 # 2. Explicit Knowledge Retrieval & Sandboxed Code Execution via MCP (SSE)
 mcp_servers:
   knowledge:
-    url: http://${KNOWLEDGE_MCP_URL}?api_key=${KNOWLEDGE_MCP_API_KEY}
+    url: ${KNOWLEDGE_MCP_URL}?api_key=${KNOWLEDGE_MCP_API_KEY}
     headers:
       Authorization: "Bearer ${KNOWLEDGE_MCP_API_KEY}"
   agent_sandbox:
-    url: http://${SANDBOX_MCP_URL}?api_key=${SANDBOX_API_KEY}
+    url: ${SANDBOX_MCP_URL}?api_key=${SANDBOX_API_KEY}
     headers:
       Authorization: "Bearer ${SANDBOX_API_KEY}"
 
@@ -170,7 +172,7 @@ embeddings:
 # --- Dashboard & Gateway ---
 dashboard:
   enabled: true
-  public_url: ${HERMES_DASHBOARD_PUBLIC_URL}
+  public_url: ${HERMES_DASHBOARD_PUBLIC_URL:-https://hermes.bluewave.work}
   theme: default
   basic_auth:
     username: "${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}"
