@@ -57,10 +57,7 @@ services:
       - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/output:/output
       - ./scripts:/workspace/scripts:ro
       - ./scripts/patches/tts_tool_openai.py:/opt/hermes/tools/tts_tool_openai.py:ro
-      - ./scripts/patches/transcription_cloud.py:/opt/hermes/tools/transcription_cloud.py:ro
-      - ./scripts/patches/whatsapp_tool.py:/opt/hermes/tools/whatsapp_tool.py:ro
-      - ./scripts/patches/sandbox_tool.py:/opt/hermes/tools/sandbox_tool.py:ro
-      - ./scripts/patches/toolsets.py:/opt/hermes/toolsets.py:ro
+      - ./plugins/homelab-tools:/opt/data/plugins/homelab-tools:ro
     environment:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - MEDIA_WORKSPACE_HOST_ROOT=${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes

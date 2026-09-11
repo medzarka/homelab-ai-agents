@@ -225,3 +225,12 @@ platform_toolsets:
     - image_gen
     - whatsapp
     - sandbox
+
+tools:
+  tool_search:
+    enabled: off
+
+plugins:
+  enabled:
+    - homelab-tools
+

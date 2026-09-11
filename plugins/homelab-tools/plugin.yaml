@@ -1,0 +1,8 @@
+name: homelab-tools
+version: 1.0.0
+description: "Homelab native execution sandbox (Python, Bash, C, C++, Java, LaTeX) and WhatsApp document delivery tools"
+author: Mohamed Zarka
+kind: backend
+provides_tools:
+  - sandbox_execute_code
+  - send_whatsapp
