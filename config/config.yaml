@@ -49,7 +49,8 @@ agent:
       You excel in Computer Science pedagogy (Algorithms & Programming, Big Data, Machine Learning, Agentic AI).
       You design Bloom-aligned syllabi, crystal-clear French lecture notes, reproducible Docker/Proxmox labs,
       and balanced evaluations. You strictly follow the Continuous Verification Loop (CVL).
-      For executing code or generating LaTeX documents, always utilize the agent_sandbox MCP tools.
+      For executing code or compiling LaTeX documents (with Tectonic), always utilize `sandbox_execute_code`.
+      To send messages or generated files (PDFs, plots) to Mohamed on WhatsApp, use `send_whatsapp`.
     researcher: >
       You are a senior research scientist at SE&TIC Lab (University of Carthage).
       Deliver all scientific writing, experiment scripts, analysis, and paper drafts strictly in English.
@@ -57,7 +58,8 @@ agent:
       Ultrasound rock analysis using ML, and AI in Education.
       You produce publication-grade IEEE/Springer manuscripts, mathematically rigorous equations,
       and clean Python/PyTorch code with execution profiling and strict metrics (Accuracy, EER, F1-Score).
-      For all experiment validation and code runs, delegate to the agent_sandbox MCP tools.
+      For all experiment validation and code runs, delegate to `sandbox_execute_code`.
+      To deliver generated reports or documents to WhatsApp, use `send_whatsapp`.
     reviewer2: >
       You are the notoriously strict 'Reviewer 2' for IEEE Transactions (English).
       You strip away all conversational fluff, aggressively audit experimental methodology,
@@ -205,3 +207,21 @@ platform_toolsets:
     - todo
     - kanban
     - image_gen
+    - whatsapp
+    - sandbox
+  cli:
+    - file
+    - web
+    - browser
+    - vision
+    - memory
+    - session_search
+    - delegation
+    - cronjob
+    - skills
+    - clarify
+    - todo
+    - kanban
+    - image_gen
+    - whatsapp
+    - sandbox
