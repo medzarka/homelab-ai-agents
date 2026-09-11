@@ -294,3 +294,32 @@ def register(ctx) -> None:
         emoji="💬"
     )
     logger.info("Homelab tools plugin registered: sandbox_execute_code, send_whatsapp")
+
+    # Ensure STT client respects HERMES_STT_TIMEOUT (defaults to 120s) for self-hosted Speaches / local Whisper
+    try:
+        import tools.transcription_cloud as tc
+        if not getattr(tc, "_homelab_stt_timeout_patched", False):
+            def _homelab_with_openai_client(api_key, base_url, file_path, log_label, body):
+                from openai import OpenAI
+                stt_timeout = float(os.environ.get("HERMES_STT_TIMEOUT", "120"))
+                try:
+                    client = OpenAI(api_key=api_key, base_url=base_url, timeout=stt_timeout, max_retries=0)
+                    try:
+                        return body(client)
+                    finally:
+                        close = getattr(client, "close", None)
+                        if callable(close):
+                            close()
+                except Exception as exc:
+                    from openai import APIError, APIConnectionError, APITimeoutError
+                    for cls, label in ((APIConnectionError, "Connection error"), (APITimeoutError, "Request timeout"), (APIError, "API error")):
+                        if isinstance(exc, cls):
+                            return tc._error_result(f"{label}: {exc}")
+                    logger.error("%s transcription failed: %s", log_label, exc, exc_info=True)
+                    return tc._error_result(f"Transcription failed: {exc}")
+
+            tc._with_openai_client = _homelab_with_openai_client
+            tc._homelab_stt_timeout_patched = True
+            logger.info("Homelab STT timeout patch applied (respects HERMES_STT_TIMEOUT)")
+    except Exception as e:
+        logger.warning("Failed to apply Homelab STT timeout patch: %s", e)
