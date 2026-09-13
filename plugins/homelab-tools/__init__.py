@@ -323,3 +323,14 @@ def register(ctx) -> None:
             logger.info("Homelab STT timeout patch applied (respects HERMES_STT_TIMEOUT)")
     except Exception as e:
         logger.warning("Failed to apply Homelab STT timeout patch: %s", e)
+
+    # Ensure native file tools remain 100% available by decoupling check_file_requirements
+    try:
+        import tools
+        tools.check_file_requirements = lambda: True
+        import tools.file_tools as ft
+        ft._check_file_reqs = lambda: True
+        logger.info("Homelab file tools requirement patch applied (file tools decoupled and active)")
+    except Exception as e:
+        logger.warning("Failed to apply Homelab file tools patch: %s", e)
+

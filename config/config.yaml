@@ -84,9 +84,9 @@ agent:
       productivity optimization recommendations.
 
 # --- Execution Policy ---
-# Code execution is securely delegated to the dedicated Homelab Agent Sandbox MCP Server
+# Container-isolated local terminal & file tools; heavy execution is delegated to Agent Sandbox
 terminal:
-  backend: disabled
+  backend: local
   cwd: /workspace
 
 # --- Web Tools ---
@@ -195,6 +195,7 @@ whatsapp:
 platform_toolsets:
   default:
     - file
+    - terminal
     - web
     - browser
     - vision
@@ -211,6 +212,7 @@ platform_toolsets:
     - sandbox
   cli:
     - file
+    - terminal
     - web
     - browser
     - vision

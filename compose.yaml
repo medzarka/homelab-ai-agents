@@ -69,6 +69,7 @@ services:
       - HERMES_PROFILE=default
       - HERMES_GATEWAY_NO_SUPERVISE=1
       - HERMES_WRITE_SAFE_ROOT=/workspace:/tmp:/opt/data
+      - TERMINAL_ENV=local
       - HERMES_STT_TIMEOUT=60
 
       # Messaging Platforms
