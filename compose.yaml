@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}:/data
-      - ./config/config.yaml:/config/config.yaml:ro
+      - ./config:/config:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -26,14 +26,15 @@ services:
         mkdir -p /data/open-webui /data/ignis/data
         mkdir -p /data/filebrowser/database /data/filebrowser/config
 
-        if [ ! -s /data/workspace/hermes/config.yaml ]; then
+        if [ ! -s /data/workspace/hermes/config.yaml ] && [ -f /config/config.yaml ]; then
           echo ">>> [Init] Seeding Hermes config.yaml from repository..."
           cp /config/config.yaml /data/workspace/hermes/config.yaml
         fi
 
         echo ">>> [Init] Setting volume ownership and permissions..."
         chmod -R 775 /data/workspace /data/open-webui /data/filebrowser
-        chown -R ${HERMES_UID:-1000}:${HERMES_GID:-1000} /data/workspace/hermes /data/filebrowser
+        chown -R ${HERMES_UID:-1000}:${HERMES_GID:-1000} /data/workspace/hermes /data/filebrowser /data/open-webui
+        chown -R ${PUID:-1000}:${PGID:-1000} /data/ignis/data
         echo ">>> [Init] Storage volumes initialized successfully! Guard active."
         sleep infinity
     healthcheck:
@@ -60,6 +61,8 @@ services:
       - ./scripts/patches/tts_tool_openai.py:/opt/hermes/tools/tts_tool_openai.py:ro
       - ./plugins/homelab-tools:/opt/data/plugins/homelab-tools:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     environment:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - MEDIA_WORKSPACE_HOST_ROOT=${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes
@@ -315,7 +318,8 @@ services:
           # A simpler robust way:
           stale_containers=$(docker ps -q --filter "ancestor=debian:slim" --filter "status=running" | while read -r id; do
             started_at=$(docker inspect -f '{{.State.StartedAt}}' "$id")
-            started_unix=$(date -d "$started_at" +%s)
+            # Strip nanoseconds for Alpine date compatibility
+            started_unix=$(date -d "${started_at%.*}Z" +%s)
             now_unix=$(date +%s)
             diff=$((now_unix - started_unix))
             # 12 hours = 43200 seconds
