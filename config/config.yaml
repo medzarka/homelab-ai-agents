@@ -86,8 +86,14 @@ agent:
 # --- Execution Policy ---
 # Container-isolated local terminal & file tools; heavy execution is delegated to Agent Sandbox
 terminal:
-  backend: local
+  backend: docker
+  docker_image: debian:slim
+  docker_user: "0:0"
+  persistent_shell: true
   cwd: /workspace
+  docker_volumes:
+    - "/srv/data/ai-agents/workspace/hermes/workspace:/workspace"
+    - "/srv/data/ai-agents/workspace/hermes/output:/output"
 
 # --- Web Tools ---
 web:
@@ -130,11 +136,6 @@ mcp_servers:
     transport: sse
     headers:
       Authorization: "Bearer ${KNOWLEDGE_MCP_API_KEY}"
-  agent_sandbox:
-    url: ${SANDBOX_MCP_URL}?api_key=${SANDBOX_API_KEY}
-    transport: sse
-    headers:
-      Authorization: "Bearer ${SANDBOX_API_KEY}"
 
 # --- Speech-to-Text (Faster-Whisper via Speaches) ---
 stt:
@@ -209,7 +210,6 @@ platform_toolsets:
     - kanban
     - image_gen
     - whatsapp
-    - sandbox
   cli:
     - file
     - terminal
@@ -226,7 +226,6 @@ platform_toolsets:
     - kanban
     - image_gen
     - whatsapp
-    - sandbox
 
 tools:
   tool_search:

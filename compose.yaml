@@ -23,7 +23,7 @@ services:
       - |
         echo ">>> [Init] Initializing Hermes Agent & Open-WebUI storage directories..."
         mkdir -p /data/workspace/hermes/workspace /data/workspace/hermes/output
-        mkdir -p /data/open-webui
+        mkdir -p /data/open-webui /data/ignis/data
         mkdir -p /data/filebrowser/database /data/filebrowser/config
 
         if [ ! -s /data/workspace/hermes/config.yaml ]; then
@@ -59,6 +59,7 @@ services:
       - ./scripts:/workspace/scripts:ro
       - ./scripts/patches/tts_tool_openai.py:/opt/hermes/tools/tts_tool_openai.py:ro
       - ./plugins/homelab-tools:/opt/data/plugins/homelab-tools:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - MEDIA_WORKSPACE_HOST_ROOT=${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes
@@ -103,8 +104,6 @@ services:
       # Model Context Protocol (MCP) Integration
       - KNOWLEDGE_MCP_URL=${KNOWLEDGE_MCP_URL:-http://knowledge-mcp:8095/mcp/sse}
       - KNOWLEDGE_MCP_API_KEY=${KNOWLEDGE_MCP_API_KEY:-}
-      - SANDBOX_MCP_URL=${SANDBOX_MCP_URL:-http://agent-sandbox:8088/mcp/sse}
-      - SANDBOX_API_KEY=${SANDBOX_API_KEY:-}
 
       # Git Integration
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
@@ -244,6 +243,100 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
+  # ========================================================
+  # IGNIS (Web-based Obsidian Interface)
+  # Multi-Arch Ready: Self-Hosted Browser Obsidian
+  # ========================================================
+  ignis:
+    image: ${IGNIS_IMAGE:-nobbe/ignis:latest}
+    container_name: ignis-obsidian
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ${DATA_DIR:-/srv/data/ai-agents}/workspace/hermes/workspace:/vaults/default
+      - ${DATA_DIR:-/srv/data/ai-agents}/ignis/data:/app/data
+      - ignis_app:/app/obsidian-app
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 256M
+    depends_on:
+      init-volumes:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ignis.rule=Host(`${IGNIS_DOMAIN:-ignis.example.com}`)
+      - traefik.http.routers.ignis.entrypoints=websecure
+      - traefik.http.routers.ignis.tls=true
+      # Protected with Authelia 2FA SSO (Strictly restricted to group 'ai-agents')
+      - traefik.http.routers.ignis.middlewares=authelia-sso@file,app-fail2ban@file,security-headers@file
+      - traefik.http.services.ignis.loadbalancer.server.port=8080
+      - traefik.docker.network=${SWARM_NETWORK:-homelab_swarm_net}
+    networks:
+      shared_net:
+        aliases:
+          - ignis
+          - ignis-obsidian
+      homelab_swarm_net:
+        aliases:
+          - ignis
+          - ignis-obsidian
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # SANDBOX REAPER (TTL 12 Hours)
+  # ========================================================
+  sandbox-reaper:
+    image: docker:cli
+    container_name: hermes_sandbox_reaper
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo ">>> [Reaper] Sandbox TTL Reaper initialized. Scanning every 1 hour for debian:slim containers older than 12h."
+        while true; do
+          sleep 3600
+          echo ">>> [Reaper] Scanning for stale sandbox containers..."
+          # Find containers using debian:slim that have been running for more than 12 hours
+          # Docker doesn't have a simple filter for exact duration, but we can parse docker ps
+          # Actually, docker ps --filter "ancestor=debian:slim" --format "{{.ID}} {{.RunningFor}}"
+          # A simpler robust way:
+          stale_containers=$(docker ps -q --filter "ancestor=debian:slim" --filter "status=running" | while read -r id; do
+            started_at=$(docker inspect -f '{{.State.StartedAt}}' "$id")
+            started_unix=$(date -d "$started_at" +%s)
+            now_unix=$(date +%s)
+            diff=$((now_unix - started_unix))
+            # 12 hours = 43200 seconds
+            if [ "$diff" -gt 43200 ]; then
+              echo "$id"
+            fi
+          done)
+          
+          if [ -n "$stale_containers" ]; then
+            for cid in $stale_containers; do
+              echo ">>> [Reaper] Terminating stale sandbox $cid"
+              docker rm -f "$cid"
+            done
+          fi
+        done
+    depends_on:
+      init-volumes:
+        condition: service_healthy
+    networks:
+      - shared_net
+
   # ========================================================
   # OPEN-WEBUI CHAT INTERFACE
   # ========================================================
@@ -324,6 +417,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  ignis_app:
+    name: ${IGNIS_APP_VOLUME:-knowledge_ignis_app}
 
 networks:
   shared_net:
