@@ -316,22 +316,22 @@ services:
           # Docker doesn't have a simple filter for exact duration, but we can parse docker ps
           # Actually, docker ps --filter "ancestor=debian:slim" --format "{{.ID}} {{.RunningFor}}"
           # A simpler robust way:
-          stale_containers=$(docker ps -q --filter "ancestor=debian:slim" --filter "status=running" | while read -r id; do
-            started_at=$(docker inspect -f '{{.State.StartedAt}}' "$id")
+          stale_containers=$$(docker ps -q --filter "ancestor=debian:slim" --filter "status=running" | while read -r id; do
+            started_at=$$(docker inspect -f '{{.State.StartedAt}}' "$$id")
             # Strip nanoseconds for Alpine date compatibility
-            started_unix=$(date -d "${started_at%.*}Z" +%s)
-            now_unix=$(date +%s)
-            diff=$((now_unix - started_unix))
+            started_unix=$$(date -d "$${started_at%.*}Z" +%s)
+            now_unix=$$(date +%s)
+            diff=$$((now_unix - started_unix))
             # 12 hours = 43200 seconds
-            if [ "$diff" -gt 43200 ]; then
-              echo "$id"
+            if [ "$$diff" -gt 43200 ]; then
+              echo "$$id"
             fi
           done)
           
-          if [ -n "$stale_containers" ]; then
-            for cid in $stale_containers; do
-              echo ">>> [Reaper] Terminating stale sandbox $cid"
-              docker rm -f "$cid"
+          if [ -n "$$stale_containers" ]; then
+            for cid in $$stale_containers; do
+              echo ">>> [Reaper] Terminating stale sandbox $$cid"
+              docker rm -f "$$cid"
             done
           fi
         done
