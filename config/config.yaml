@@ -181,6 +181,7 @@ dashboard:
     password_hash: "${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH:-scrypt$16384$8$1$jW5ZDh0n6g6lmX3PvrYdLA==$XVsZNrzf5M9Q8q4fVNtN2ZJWRDzzTceQk6yZdcsEfVs=}"
     secret: "${HERMES_DASHBOARD_BASIC_AUTH_SECRET:-homelab-hermes-secret-key-32bytes-secure}"
 
+
 platforms:
   api_server:
     enabled: true
