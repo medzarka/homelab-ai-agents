@@ -187,11 +187,20 @@ platforms:
     port: 8642
     host: 0.0.0.0
   whatsapp:
-    enabled: true
-
-whatsapp:
-  enabled: true
-  dm_policy: self-chat
+    enabled: ${WHATSAPP_ENABLED:-true}
+    mode: ${WHATSAPP_MODE:-bot}
+    default_profile: default
+    bridge_host: 127.0.0.1
+    bridge_port: ${HERMES_BRIDGE_PORT:-3000}
+    reply_prefix: ''
+    unauthorized_dm_behavior: ignore
+    allowed_users:
+      - "${WHATSAPP_ALLOWED_USERS}"
+    home_channel:
+      platform: whatsapp
+      chat_id: "${WHATSAPP_HOME_CHAT_ID}"
+      name: "${WHATSAPP_USER_NAME}"
+      user_id: "${WHATSAPP_HOME_USER_ID}"
 
 platform_toolsets:
   default:
@@ -226,10 +235,25 @@ platform_toolsets:
     - kanban
     - image_gen
     - whatsapp
+  whatsapp:
+    - file
+    - terminal
+    - web
+    - browser
+    - vision
+    - memory
+    - session_search
+    - delegation
+    - cronjob
+    - skills
+    - clarify
+    - todo
+    - kanban
+    - image_gen
 
 tools:
   tool_search:
-    enabled: off
+    enabled: true
 
 plugins:
   enabled:

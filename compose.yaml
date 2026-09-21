@@ -18,7 +18,7 @@ services:
     volumes:
       - ${DATA_DIR:-/srv/data/ai-agents}:/data
       - ./config:/config:ro
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo ">>> [Init] Initializing Hermes Agent & Open-WebUI storage directories..."
@@ -38,7 +38,7 @@ services:
         echo ">>> [Init] Storage volumes initialized successfully! Guard active."
         sleep infinity
     healthcheck:
-      test: ["CMD-SHELL", "test -d /data/workspace/hermes/workspace && test -d /data/open-webui || exit 1"]
+      test: [ "CMD-SHELL", "test -d /data/workspace/hermes/workspace && test -d /data/open-webui || exit 1" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -77,8 +77,11 @@ services:
 
       # Messaging Platforms
       - WHATSAPP_ENABLED=${WHATSAPP_ENABLED:-true}
-      - WHATSAPP_MODE=${WHATSAPP_MODE:-self-chat}
+      - WHATSAPP_MODE=${WHATSAPP_MODE:-bot}
       - WHATSAPP_ALLOWED_USERS=${WHATSAPP_ALLOWED_USERS:-}
+      - WHATSAPP_USER_NAME=${WHATSAPP_USER_NAME:-Mohamed Zarka}
+      - WHATSAPP_HOME_CHAT_ID=${WHATSAPP_HOME_CHAT_ID:-${WHATSAPP_HOME_CHANNEL}}
+      - WHATSAPP_HOME_USER_ID=${WHATSAPP_HOME_USER_ID:-${WHATSAPP_HOME_CHANNEL}}
       - WHATSAPP_HOME_CHANNEL=${WHATSAPP_HOME_CHANNEL:-}
 
       # LiteLLM Proxy / Model Gateway
@@ -133,7 +136,6 @@ services:
       - KOKORO_MODEL=${KOKORO_MODEL:-speaches-ai/Kokoro-82M-v1.0-ONNX}
       - KOKORO_VOICE=${KOKORO_VOICE:-af_heart}
       - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-}
-      
 
       # Embedding (tei)
       - EMBEDDING_API_BASE=${EMBEDDING_API_BASE:-http://embeddings:80/v1}
@@ -245,7 +247,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-
   # ========================================================
   # IGNIS (Web-based Obsidian Interface)
   # Multi-Arch Ready: Self-Hosted Browser Obsidian
@@ -304,7 +305,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo ">>> [Reaper] Sandbox TTL Reaper initialized. Scanning every 1 hour for debian:slim containers older than 12h."
@@ -365,7 +366,7 @@ services:
       - OPENAI_API_BASE_URLS=${LITELLM_API_BASE:-http://litellm:4000/v1}
       - OPENAI_API_KEYS=${LITELLM_MASTER_KEY:-}
       - ENABLE_OLLAMA_API=false
-      
+
       # --- 3. TEI Embeddings & Reranker Engine ---
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL=${EMBEDDINGS_API_BASE:-http://embeddings:80/v1}
